@@ -1,0 +1,17 @@
+server:
+  port: ${PORT:8080}
+
+telegram:
+  botToken: "8786560679:AAHmwk_vxJ0WGFm-iV9eJhRoHkpfR67sUpA"
+
+router:
+  secret: "MY_SECRET_123"
+
+spring:
+  datasource:
+    url: jdbc:sqlite:./data.db
+    driver-class-name: org.sqlite.JDBC
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
