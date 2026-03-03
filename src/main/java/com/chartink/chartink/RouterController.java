@@ -85,6 +85,10 @@ public class RouterController {
         if (expectedKey == null || !expectedKey.equals(providedKey)) return "FORBIDDEN";
 
         String chatId = (String) row.get("chat_id");
+        int currentUsage = getTodayUsageFromDailyTable(chatId);
+        if (currentUsage >= 50) {
+            return "LIMIT_EXCEEDED";
+        }
         incrementTodayUsage(chatId);
 
         String msg = buildMessage(normalizedUid, body);
@@ -92,7 +96,14 @@ public class RouterController {
 
         return "OK";
     }
-
+    private int getTodayUsageFromDailyTable(String chatId) {
+        Integer count = jdbc.queryForObject(
+                "SELECT alerts_count FROM daily_usage WHERE chat_id = ? AND day = ?",
+                Integer.class,
+                chatId, java.sql.Date.valueOf(LocalDate.now())
+        );
+        return (count == null) ? 0 : count;
+    }
     // 2) Telegram webhook
     @PostMapping(value = "/telegram", produces = "text/plain; charset=UTF-8")
     public String telegramWebhook(@RequestBody Map<String, Object> update) {
@@ -143,10 +154,13 @@ public class RouterController {
                 handleNewUid(chatId);
                 return "OK";
             }
+            // Inside the telegramWebhook method's command block
             if (text.startsWith("/stats")) {
-                int today = getTodayUsage(chatId);
-                int total = getTotalUsage(chatId);
-                sendTelegram(chatId, "📊 Alert Stats\nToday: " + today + "\nTotal: " + total);
+                int today = getTodayUsageFromDailyTable(chatId);
+                int limit = 50;
+                sendTelegram(chatId, "📊 *Daily Usage*\n" +
+                        "Used: " + today + " / " + limit + "\n" +
+                        "Remaining: " + (limit - today));
                 return "OK";
             }
             if (text.startsWith("/adminstats")) {
