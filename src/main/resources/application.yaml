@@ -2,16 +2,21 @@ server:
   port: ${PORT:8080}
 
 router:
-  secret: ${ROUTER_SECRET:MY_SECRET_123}
+  secret: ${ROUTER_SECRET}
 
 telegram:
-  botToken: ${TELEGRAM_BOT_TOKEN:PASTE_TOKEN_HERE}
+  botToken: ${TELEGRAM_BOT_TOKEN}
 
 spring:
   sql:
     init:
       mode: always
+
   datasource:
+    driver-class-name: org.postgresql.Driver
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+
+  jpa:
+    open-in-view: false
