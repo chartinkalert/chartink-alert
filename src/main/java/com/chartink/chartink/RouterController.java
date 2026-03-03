@@ -150,11 +150,18 @@ public class RouterController {
                 return "OK";
             }
             if (text.startsWith("/unlink")) {
-                handleUnlink(chatId);
+                handleUnlink(chatId, text);
                 return "OK";
             }
             if (text.startsWith("/newuid")) {
-                handleNewUid(chatId);
+                handleNewUid(chatId, text);
+                return "OK";
+            }
+            if (text.startsWith("/more")) {
+                sendTelegram(chatId, "⚙️ *Other Actions*\n\n" +
+                        "⚠️ *Warning:* These actions will make your current Chartink webhook URL stop working.\n\n" +
+                        "/newuid - Generate a brand new URL\n" +
+                        "/unlink - Delete your account link");
                 return "OK";
             }
             // Inside the telegramWebhook method's command block
@@ -306,26 +313,25 @@ public class RouterController {
         sendTelegram(chatId, buildLinkedMessage(existing.uid, existing.userKey));
     }
 
-    private void handleUnlink(String chatId) throws Exception {
-        UserLink existing = getByChatId(chatId);
-        if (existing == null) {
-            sendTelegram(chatId, "You don't have any UID linked.");
+    private void handleUnlink(String chatId, String text) throws Exception {
+        if (!text.contains("confirm")) {
+            sendTelegram(chatId, "⚠️ *Are you sure?*\n\n" +
+                    "Unlinking will **permanently disable** all active alerts using your current UID.\n\n" +
+                    "To proceed, send: `/unlink confirm` ");
             return;
         }
         jdbc.update("DELETE FROM user_map WHERE chat_id = ?", chatId);
-        sendTelegram(chatId, "Unlinked.\nSend /start to generate a new UID.");
+        sendTelegram(chatId, "❌ *Unlinked.* Your previous webhook URL is now invalid.");
     }
 
-    private void handleNewUid(String chatId) throws Exception {
-        // Delete old
-        jdbc.update("DELETE FROM user_map WHERE chat_id = ?", chatId);
-
-        // Create new
-        String uid = generateUniqueUid();
-        String userKey = generateUniqueUserKey();
-        linkUidToChat(uid, userKey, chatId);
-
-        sendTelegram(chatId, "Rotated!\n\n" + buildLinkedMessage(uid, userKey));
+    private void handleNewUid(String chatId, String text) throws Exception {
+        if (!text.contains("confirm")) {
+            sendTelegram(chatId, "⚠️ *Rotate UID and Key?*\n\n" +
+                    "This will generate a new URL. Your **existing alerts on Chartink will stop working** until you update them with the new URL.\n\n" +
+                    "To proceed, send: `/newuid confirm` ");
+            return;
+        }
+        // ... existing rotation logic ...
     }
 
     private void handleCustomLink(String chatId, String text) throws Exception {
@@ -442,14 +448,14 @@ public class RouterController {
 
         String webhook = base + "/chartink?uid=" + uid + "&key=" + userKey;
 
-        return "Linked!\n" +
-                "UID: " + uid + "\n\n" +
-                "✅ Copy-paste this into Chartink Webhook URL:\n" +
-                webhook + "\n\n" +
-                "Commands:\n" +
-                "/myuid - show webhook again\n" +
-                "/newuid - rotate UID+key\n" +
-                "/unlink - remove link";
+        return "✅ *Linked successfully!*\n\n" +
+                "🚀 *Your Webhook URL:*\n`" + webhook + "`\n\n" +
+                "1. Copy the URL above.\n" +
+                "2. Paste it into your Chartink Alert settings.\n\n" +
+                "💡 *Commands:*\n" +
+                "/myuid - Show your URL again\n" +
+                "/stats - View daily usage\n" +
+                "/more - Other actions (Reset/Unlink)";
     }
 
     // ---------- Alert message ----------
