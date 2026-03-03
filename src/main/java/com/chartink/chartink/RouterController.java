@@ -81,9 +81,6 @@ public class RouterController {
         String chatId = (String) row.get("chat_id");
         incrementTodayUsage(chatId);
 
-
-        String chatId = (String) row.get("chat_id");
-
         String msg = buildMessage(normalizedUid, body);
         sendTelegram(chatId, msg);
 
