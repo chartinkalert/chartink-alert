@@ -328,39 +328,75 @@ public class RouterController {
 
     // ---------- Alert message ----------
 
+    private String escapeMarkdown(String s) {
+        if (s == null) return "";
+        return s.replace("_", "\\_")
+                .replace("*", "\\*")
+                .replace("[", "\\[")
+                .replace("]", "\\]")
+                .replace("(", "\\(")
+                .replace(")", "\\)")
+                .replace("~", "\\~")
+                .replace("`", "\\`")
+                .replace(">", "\\>")
+                .replace("#", "\\#")
+                .replace("+", "\\+")
+                .replace("-", "\\-")
+                .replace("=", "\\=")
+                .replace("|", "\\|")
+                .replace("{", "\\{")
+                .replace("}", "\\}")
+                .replace(".", "\\.")
+                .replace("!", "\\!");
+    }
+
     private String buildMessage(String uid, String body) {
+        // If Chartink sends empty body
         if (body == null || body.trim().isEmpty()) {
-            return "Chartink Alert Triggered\nUID: " + uid;
+            return "🔔 *Chartink Alert*\n\n" +
+                    "No extra data received.\n" +
+                    "_(Check your Chartink alert message body)_";
         }
 
         String scanName = "";
         String stockData = "";
+        String timePart = "";
 
         try {
+            // Example: "Extra Data: iffl 2, MTARTECH - 2114, @ 12:09 pm"
             String lower = body.toLowerCase();
             int idx = lower.indexOf("extra data:");
             if (idx >= 0) {
                 String extra = body.substring(idx + "extra data:".length()).trim();
+
+                // Split by commas
                 String[] parts = extra.split(",");
-                if (parts.length >= 2) {
-                    scanName = parts[0].trim();
-                    stockData = parts[1].trim();
-                } else {
-                    stockData = extra.trim();
-                }
+
+                if (parts.length >= 1) scanName = parts[0].trim();
+                if (parts.length >= 2) stockData = parts[1].trim();
+
+                // Grab time if present like "@ 12:09 pm"
+                int atIdx = extra.indexOf("@");
+                if (atIdx >= 0) timePart = extra.substring(atIdx).trim(); // "@ 12:09 pm"
             } else {
+                // If no "Extra Data:" just show the full body
                 stockData = body.trim();
             }
         } catch (Exception e) {
-            return "Alert\n\n" + body;
+            return "🔔 *Chartink Alert*\n\n" + escapeMarkdown(body);
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("Chartink Alert").append("\n");
-        sb.append("UID: ").append(uid).append("\n\n");
-        if (!scanName.isEmpty()) sb.append("Scan: ").append(scanName).append("\n");
-        if (!stockData.isEmpty()) sb.append("Stock: ").append(stockData);
-        return sb.toString();
+        sb.append("🔔 *Chartink Alert*").append("\n\n");
+
+        if (!scanName.isEmpty()) sb.append("🧠 *Scan:* ").append(escapeMarkdown(scanName)).append("\n");
+        if (!stockData.isEmpty()) sb.append("📈 *Stock:* ").append(escapeMarkdown(stockData)).append("\n");
+        if (!timePart.isEmpty()) sb.append("⏰ *Time:* ").append(escapeMarkdown(timePart)).append("\n");
+
+        // Optional: show raw body in smaller text if you want debugging
+        // sb.append("\n").append("_").append(escapeMarkdown(body)).append("_");
+
+        return sb.toString().trim();
     }
 
     // ---------- Telegram sender ----------
@@ -370,7 +406,8 @@ public class RouterController {
 
         String json = "{"
                 + "\"chat_id\":\"" + escapeJson(chatId) + "\","
-                + "\"text\":\"" + escapeJson(text) + "\""
+                + "\"text\":\"" + escapeJson(text) + "\","
+                + "\"parse_mode\":\"Markdown\""
                 + "}";
 
         HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
