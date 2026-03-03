@@ -97,12 +97,15 @@ public class RouterController {
         return "OK";
     }
     private int getTodayUsageFromDailyTable(String chatId) {
-        Integer count = jdbc.queryForObject(
+        // Using a list query to avoid EmptyResultDataAccessException if no row exists
+        List<Integer> counts = jdbc.query(
                 "SELECT alerts_count FROM daily_usage WHERE chat_id = ? AND day = ?",
-                Integer.class,
+                (rs, rowNum) -> rs.getInt("alerts_count"),
                 chatId, java.sql.Date.valueOf(LocalDate.now())
         );
-        return (count == null) ? 0 : count;
+
+        // If the list is empty, it means no alerts have been sent today yet
+        return counts.isEmpty() ? 0 : counts.get(0);
     }
     // 2) Telegram webhook
     @PostMapping(value = "/telegram", produces = "text/plain; charset=UTF-8")
