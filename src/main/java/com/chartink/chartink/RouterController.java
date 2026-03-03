@@ -79,6 +79,10 @@ public class RouterController {
         if (expectedKey == null || !expectedKey.equals(providedKey)) return "FORBIDDEN";
 
         String chatId = (String) row.get("chat_id");
+        incrementTodayUsage(chatId);
+
+
+        String chatId = (String) row.get("chat_id");
 
         String msg = buildMessage(normalizedUid, body);
         sendTelegram(chatId, msg);
@@ -134,6 +138,12 @@ public class RouterController {
             }
             if (text.startsWith("/newuid")) {
                 handleNewUid(chatId);
+                return "OK";
+            }
+            if (text.startsWith("/stats")) {
+                int today = getTodayUsage(chatId);
+                int total = getTotalUsage(chatId);
+                sendTelegram(chatId, "📊 Alert Stats\nToday: " + today + "\nTotal: " + total);
                 return "OK";
             }
 
@@ -428,6 +438,34 @@ public class RouterController {
             }
         }
     }
+
+    private void incrementTodayUsage(String chatId) {
+        jdbc.update(
+                "INSERT INTO alert_usage(chat_id, day, count) VALUES (?, CURRENT_DATE, 1) " +
+                        "ON CONFLICT (chat_id, day) DO UPDATE SET count = alert_usage.count + 1",
+                chatId
+        );
+    }
+
+    private int getTodayUsage(String chatId) {
+        Integer v = jdbc.query(
+                "SELECT count FROM alert_usage WHERE chat_id = ? AND day = CURRENT_DATE",
+                rs -> rs.next() ? rs.getInt(1) : null,
+                chatId
+        );
+        return v == null ? 0 : v;
+    }
+
+    private int getTotalUsage(String chatId) {
+        Integer v = jdbc.query(
+                "SELECT COALESCE(SUM(count), 0) FROM alert_usage WHERE chat_id = ?",
+                rs -> rs.next() ? rs.getInt(1) : 0,
+                chatId
+        );
+        return v == null ? 0 : v;
+    }
+
+
 
     // Proper JSON escape
     private String escapeJson(String s) {

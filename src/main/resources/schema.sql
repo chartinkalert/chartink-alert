@@ -22,3 +22,14 @@ ALTER TABLE user_map
     ALTER COLUMN user_key SET NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_user_map_user_key ON user_map(user_key);
+
+-- Existing user_map should already exist
+
+CREATE TABLE IF NOT EXISTS alert_usage (
+                                           chat_id   TEXT NOT NULL,
+                                           day       DATE NOT NULL,
+                                           count     INTEGER NOT NULL DEFAULT 0,
+                                           PRIMARY KEY (chat_id, day)
+    );
+
+CREATE INDEX IF NOT EXISTS ix_alert_usage_chat_day ON alert_usage(chat_id, day);
