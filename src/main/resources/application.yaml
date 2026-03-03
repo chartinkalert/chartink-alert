@@ -1,17 +1,18 @@
 server:
   port: ${PORT:8080}
 
-telegram:
-  botToken: "8786560679:AAHmwk_vxJ0WGFm-iV9eJhRoHkpfR67sUpA"
-
 router:
-  secret: "MY_SECRET_123"
+  secret: ${ROUTER_SECRET:MY_SECRET_123}
+
+telegram:
+  botToken: ${TELEGRAM_BOT_TOKEN:PASTE_TOKEN_HERE}
 
 spring:
-  datasource:
-    url: jdbc:sqlite:./data.db
-    driver-class-name: org.sqlite.JDBC
   sql:
     init:
       mode: always
-      schema-locations: classpath:schema.sql
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
