@@ -325,13 +325,27 @@ public class RouterController {
     }
 
     private void handleNewUid(String chatId, String text) throws Exception {
+        // 1. Check for confirmation
         if (!text.contains("confirm")) {
             sendTelegram(chatId, "⚠️ *Rotate UID and Key?*\n\n" +
                     "This will generate a new URL. Your **existing alerts on Chartink will stop working** until you update them with the new URL.\n\n" +
                     "To proceed, send: `/newuid confirm` ");
             return;
         }
-        // ... existing rotation logic ...
+
+        // 2. Perform the rotation
+        // Delete the old mapping first
+        jdbc.update("DELETE FROM user_map WHERE chat_id = ?", chatId);
+
+        // Generate new secure credentials
+        String uid = generateUniqueUid();
+        String userKey = generateUniqueUserKey();
+
+        // Link the new credentials to the user
+        linkUidToChat(uid, userKey, chatId);
+
+        // Send the success message with the new URL
+        sendTelegram(chatId, "🔄 *Rotated Successfully!*\n\n" + buildLinkedMessage(uid, userKey));
     }
 
     private void handleCustomLink(String chatId, String text) throws Exception {
