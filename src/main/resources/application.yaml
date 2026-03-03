@@ -20,3 +20,5 @@ spring:
 
   jpa:
     open-in-view: false
+app:
+  publicUrl: ${APP_PUBLIC_URL}

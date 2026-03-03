@@ -26,21 +26,27 @@ public class RouterController {
     // Dedup Telegram retries by update_id
     private final Set<Long> seenUpdates = ConcurrentHashMap.newKeySet();
 
-    // UID generator
+    // Generators
     private static final SecureRandom RNG = new SecureRandom();
-    private static final char[] ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray(); // no I,O,0,1
+    private static final char[] UID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray(); // no I,O,0,1
+    private static final char[] KEY_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".toCharArray();
 
     @Value("${telegram.botToken}")
     private String botToken;
 
-    @Value("${router.secret}")
-    private String secret;
+    // Public URL of your server (Railway domain)
+    // Add in application.yaml:
+    // app:
+    //   publicUrl: ${APP_PUBLIC_URL}
+    @Value("${app.publicUrl}")
+    private String publicUrl;
 
     public RouterController(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
     // 1) Chartink will call this
+    // Now validates: uid + per-user key stored in DB
     @PostMapping(
             value = "/chartink",
             consumes = MediaType.ALL_VALUE,
@@ -54,20 +60,29 @@ public class RouterController {
 
         if (!StringUtils.hasText(uid)) return "NO_UID";
         if (!StringUtils.hasText(key)) return "NO_KEY";
-        if (secret == null || !secret.equals(key)) return "FORBIDDEN";
 
         String normalizedUid = uid.trim().toLowerCase();
+        String providedKey = key.trim();
 
-        String chatId = jdbc.query(
-                "SELECT chat_id FROM user_map WHERE uid = ?",
-                rs -> rs.next() ? rs.getString(1) : null,
+        // Fetch chat_id + user_key for uid
+        Map<String, Object> row = jdbc.query(
+                "SELECT chat_id, user_key FROM user_map WHERE uid = ?",
+                rs -> rs.next()
+                        ? Map.of("chat_id", rs.getString("chat_id"), "user_key", rs.getString("user_key"))
+                        : null,
                 normalizedUid
         );
 
-        if (chatId == null) return "UID_NOT_LINKED";
+        if (row == null) return "UID_NOT_LINKED";
+
+        String expectedKey = (String) row.get("user_key");
+        if (expectedKey == null || !expectedKey.equals(providedKey)) return "FORBIDDEN";
+
+        String chatId = (String) row.get("chat_id");
 
         String msg = buildMessage(normalizedUid, body);
         sendTelegram(chatId, msg);
+
         return "OK";
     }
 
@@ -138,51 +153,62 @@ public class RouterController {
     // ---------- Command handlers ----------
 
     private void handleStart(String chatId) throws Exception {
-        String existingUid = getUidByChatId(chatId);
-        if (existingUid != null) {
+        UserLink existing = getByChatId(chatId);
+        if (existing != null) {
             sendTelegram(chatId,
-                    "You already have a UID:\n" + existingUid +
-                            "\n\nUse /myuid to view it.\nUse /unlink then /start to get a new one.");
+                    "You are already linked.\n\n" +
+                            "UID: " + existing.uid + "\n\n" +
+                            "Use /myuid to get your full Chartink webhook URL.\n" +
+                            "Use /newuid to rotate it, or /unlink to remove.");
             return;
         }
+
         String uid = generateUniqueUid();
-        linkUidToChat(uid, chatId);
-        sendTelegram(chatId, buildLinkedMessage(uid));
+        String userKey = generateUniqueUserKey();
+
+        linkUidToChat(uid, userKey, chatId);
+
+        sendTelegram(chatId, buildLinkedMessage(uid, userKey));
     }
 
     private void handleMyUid(String chatId) throws Exception {
-        String existingUid = getUidByChatId(chatId);
-        if (existingUid == null) {
+        UserLink existing = getByChatId(chatId);
+        if (existing == null) {
             sendTelegram(chatId, "No UID linked.\nSend /start to generate one.");
-        } else {
-            sendTelegram(chatId, "Your UID: " + existingUid);
+            return;
         }
+        sendTelegram(chatId, buildLinkedMessage(existing.uid, existing.userKey));
     }
 
     private void handleUnlink(String chatId) throws Exception {
-        String existingUid = getUidByChatId(chatId);
-        if (existingUid == null) {
+        UserLink existing = getByChatId(chatId);
+        if (existing == null) {
             sendTelegram(chatId, "You don't have any UID linked.");
             return;
         }
         jdbc.update("DELETE FROM user_map WHERE chat_id = ?", chatId);
-        sendTelegram(chatId, "Unlinked UID: " + existingUid + "\nSend /start to generate a new UID.");
+        sendTelegram(chatId, "Unlinked.\nSend /start to generate a new UID.");
     }
 
     private void handleNewUid(String chatId) throws Exception {
-        // unlink if exists
+        // Delete old
         jdbc.update("DELETE FROM user_map WHERE chat_id = ?", chatId);
+
+        // Create new
         String uid = generateUniqueUid();
-        linkUidToChat(uid, chatId);
-        sendTelegram(chatId, "New UID generated!\n\n" + buildLinkedMessage(uid));
+        String userKey = generateUniqueUserKey();
+        linkUidToChat(uid, userKey, chatId);
+
+        sendTelegram(chatId, "Rotated!\n\n" + buildLinkedMessage(uid, userKey));
     }
 
     private void handleCustomLink(String chatId, String text) throws Exception {
-        String existingUid = getUidByChatId(chatId);
-        if (existingUid != null) {
+        UserLink existing = getByChatId(chatId);
+        if (existing != null) {
             sendTelegram(chatId,
-                    "You already have UID: " + existingUid +
-                            "\nUse /unlink first, or just use /newuid.");
+                    "You already have a UID.\n\n" +
+                            "UID: " + existing.uid + "\n\n" +
+                            "Use /newuid to rotate or /unlink to remove.");
             return;
         }
 
@@ -200,66 +226,104 @@ public class RouterController {
             return;
         }
 
-        String takenBy = getChatIdByUid(uid);
-        if (takenBy != null) {
+        // ensure uid not taken
+        if (getByUid(uid) != null) {
             sendTelegram(chatId, "This UID is already taken.\nChoose a different UID or use /start.");
             return;
         }
 
-        // Link (DB unique index on chat_id prevents multiple UIDs per chat too)
-        linkUidToChat(uid, chatId);
-        sendTelegram(chatId, buildLinkedMessage(uid));
+        String userKey = generateUniqueUserKey();
+        linkUidToChat(uid, userKey, chatId);
+
+        sendTelegram(chatId, buildLinkedMessage(uid, userKey));
     }
 
     // ---------- DB helpers ----------
 
-    private String getUidByChatId(String chatId) {
+    private static class UserLink {
+        final String uid;
+        final String chatId;
+        final String userKey;
+
+        UserLink(String uid, String chatId, String userKey) {
+            this.uid = uid;
+            this.chatId = chatId;
+            this.userKey = userKey;
+        }
+    }
+
+    private UserLink getByChatId(String chatId) {
         return jdbc.query(
-                "SELECT uid FROM user_map WHERE chat_id = ?",
-                rs -> rs.next() ? rs.getString(1) : null,
+                "SELECT uid, chat_id, user_key FROM user_map WHERE chat_id = ?",
+                rs -> rs.next() ? new UserLink(rs.getString("uid"), rs.getString("chat_id"), rs.getString("user_key")) : null,
                 chatId
         );
     }
 
-    private String getChatIdByUid(String uid) {
+    private UserLink getByUid(String uid) {
         return jdbc.query(
-                "SELECT chat_id FROM user_map WHERE uid = ?",
-                rs -> rs.next() ? rs.getString(1) : null,
+                "SELECT uid, chat_id, user_key FROM user_map WHERE uid = ?",
+                rs -> rs.next() ? new UserLink(rs.getString("uid"), rs.getString("chat_id"), rs.getString("user_key")) : null,
                 uid
         );
     }
 
-    private void linkUidToChat(String uid, String chatId) {
+    private void linkUidToChat(String uid, String userKey, String chatId) {
         jdbc.update(
-                "INSERT INTO user_map(uid, chat_id, updated_at) VALUES(?,?,?)",
-                uid, chatId, Instant.now().getEpochSecond()
+                "INSERT INTO user_map(uid, chat_id, user_key, updated_at) VALUES(?,?,?,?)",
+                uid, chatId, userKey, Instant.now().getEpochSecond()
         );
     }
 
-    // ---------- UID generator ----------
+    // ---------- UID & key generator ----------
 
     private String generateUniqueUid() throws Exception {
-        for (int tries = 0; tries < 30; tries++) {
-            String uid = generateUid(8);
-            if (getChatIdByUid(uid) == null) {
-                return uid;
-            }
+        for (int tries = 0; tries < 40; tries++) {
+            String uid = generateFromAlphabet(UID_ALPHABET, 8).toLowerCase();
+            if (getByUid(uid) == null) return uid;
         }
         throw new Exception("Could not generate unique UID");
     }
 
-    private String generateUid(int len) {
-        StringBuilder sb = new StringBuilder(len);
-        for (int i = 0; i < len; i++) {
-            sb.append(ALPHABET[RNG.nextInt(ALPHABET.length)]);
+    private String generateUniqueUserKey() throws Exception {
+        for (int tries = 0; tries < 40; tries++) {
+            // Longer key for security
+            String key = generateFromAlphabet(KEY_ALPHABET, 24);
+            // ensure unique key
+            String exists = jdbc.query(
+                    "SELECT user_key FROM user_map WHERE user_key = ?",
+                    rs -> rs.next() ? rs.getString(1) : null,
+                    key
+            );
+            if (exists == null) return key;
         }
-        return sb.toString().toLowerCase();
+        throw new Exception("Could not generate unique user key");
     }
 
-    private String buildLinkedMessage(String uid) {
-        return "Linked!\nUID: " + uid +
-                "\n\nNow set your Chartink webhook to:\n" +
-                "(server)/chartink?uid=" + uid + "&key=YOUR_SECRET";
+    private String generateFromAlphabet(char[] alphabet, int len) {
+        StringBuilder sb = new StringBuilder(len);
+        for (int i = 0; i < len; i++) {
+            sb.append(alphabet[RNG.nextInt(alphabet.length)]);
+        }
+        return sb.toString();
+    }
+
+    // ---------- User-facing message ----------
+
+    private String buildLinkedMessage(String uid, String userKey) {
+        String base = StringUtils.hasText(publicUrl) ? publicUrl.trim() : "(server)";
+        if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+
+        String webhook = base + "/chartink?uid=" + uid + "&key=" + userKey;
+
+        return "Linked!\n" +
+                "UID: " + uid + "\n\n" +
+                "✅ Copy-paste this into Chartink Webhook URL:\n" +
+                webhook + "\n\n" +
+                "Commands:\n" +
+                "/myuid - show webhook again\n" +
+                "/newuid - rotate UID+key\n" +
+                "/unlink - remove link";
     }
 
     // ---------- Alert message ----------
@@ -273,7 +337,6 @@ public class RouterController {
         String stockData = "";
 
         try {
-            // Example: Extra Data: iffl 2, MTARTECH - 2114, @ 12:09 pm
             String lower = body.toLowerCase();
             int idx = lower.indexOf("extra data:");
             if (idx >= 0) {
@@ -292,7 +355,6 @@ public class RouterController {
             return "Alert\n\n" + body;
         }
 
-        // Plain text (Java 8 safe)
         StringBuilder sb = new StringBuilder();
         sb.append("Chartink Alert").append("\n");
         sb.append("UID: ").append(uid).append("\n\n");
@@ -330,7 +392,7 @@ public class RouterController {
         }
     }
 
-    // Proper JSON escape for Java 8
+    // Proper JSON escape
     private String escapeJson(String s) {
         if (s == null) return "";
         StringBuilder out = new StringBuilder(s.length() + 16);
