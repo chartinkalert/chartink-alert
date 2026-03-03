@@ -33,3 +33,9 @@ CREATE TABLE IF NOT EXISTS alert_usage (
     );
 
 CREATE INDEX IF NOT EXISTS ix_alert_usage_chat_day ON alert_usage(chat_id, day);
+CREATE TABLE IF NOT EXISTS daily_usage (
+                                           day date NOT NULL,
+                                           chat_id text NOT NULL,
+                                           alerts_count int NOT NULL DEFAULT 0,
+                                           PRIMARY KEY (day, chat_id)
+    );

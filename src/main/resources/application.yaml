@@ -22,3 +22,5 @@ spring:
     open-in-view: false
 app:
   publicUrl: ${APP_PUBLIC_URL}
+admin:
+  chatId: ${ADMIN_CHAT_ID:}
