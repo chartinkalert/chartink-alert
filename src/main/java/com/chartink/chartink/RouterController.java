@@ -504,20 +504,20 @@ public class RouterController {
         String scanName = "External Alert";
         String stockData = "";
         String timePart = "";
-        String triggeredStocks = "";
+        String triggeredStocks = ""; // For multiple stocks
 
         try {
             String cleanBody = body.trim();
 
             if (cleanBody.startsWith("{")) {
-                // 1. EXTRACT THE LIST OF ALL STOCKS
+                // 1. CAPTURE ALL STOCKS (this is what's missing)
                 triggeredStocks = extractJsonValue(cleanBody, "stocks");
 
-                // 2. Extract primary symbol and price
+                // 2. Extract specific trigger details
                 String symbol = extractJsonValue(cleanBody, "symbol");
                 String price = extractJsonValue(cleanBody, "trigger_price");
 
-                // IFTTT fallback
+                // IFTTT fallback logic
                 if (symbol.isEmpty()) symbol = extractJsonValue(cleanBody, "Value1");
 
                 if (!symbol.isEmpty()) {
@@ -530,6 +530,7 @@ public class RouterController {
                 timePart = extractJsonValue(cleanBody, "triggered_at");
             }
             else if (cleanBody.toLowerCase().contains("extra data:")) {
+                // Existing fallback parsing for string-based triggers
                 String extra = cleanBody.substring(cleanBody.toLowerCase().indexOf("extra data:") + 11).trim();
                 String[] parts = extra.split(",");
                 if (parts.length >= 1) scanName = parts[0].trim();
@@ -542,11 +543,12 @@ public class RouterController {
             return "🔔 *Alert*\n\n" + escapeMarkdown(body);
         }
 
+        // Build the final Telegram message
         StringBuilder sb = new StringBuilder();
         sb.append("🔔 *New Alert*").append("\n\n");
-        if (!scanName.isEmpty()) sb.append("🧠 *Source:* ").append(escapeMarkdown(scanName)).append("\n");
+        if (!scanName.isEmpty()) sb.append("🧠 *Scan:* ").append(escapeMarkdown(scanName)).append("\n");
 
-        // Display the specific trigger symbol if it exists
+        // Display the specific trigger stock
         if (!stockData.isEmpty()) sb.append("📈 *Triggered:* ").append(escapeMarkdown(stockData)).append("\n");
 
         // 3. ADD THE FULL LIST TO THE MESSAGE
