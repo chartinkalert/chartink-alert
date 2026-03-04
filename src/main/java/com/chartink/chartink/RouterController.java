@@ -501,7 +501,6 @@ public class RouterController {
             return "🔔 *Alert Received*\n\nNo data payload found.";
         }
 
-        // Default values
         String scanName = "External Alert";
         String stockData = "";
         String timePart = "";
@@ -510,13 +509,16 @@ public class RouterController {
         try {
             String cleanBody = body.trim();
 
-            // 1. Try to parse as JSON (IFTTT or Chartink)
+            // 1. Parse JSON format
             if (cleanBody.startsWith("{")) {
+                // Capture the full list of triggered stocks
                 triggeredStocks = extractJsonValue(cleanBody, "stocks");
+
+                // Extract primary symbol and price
                 String symbol = extractJsonValue(cleanBody, "symbol");
                 String price = extractJsonValue(cleanBody, "trigger_price");
 
-                // IFTTT often uses "Value1", "Value2", etc.
+                // IFTTT fallback
                 if (symbol.isEmpty()) symbol = extractJsonValue(cleanBody, "Value1");
 
                 if (!symbol.isEmpty()) {
@@ -535,21 +537,25 @@ public class RouterController {
                 if (parts.length >= 1) scanName = parts[0].trim();
                 if (parts.length >= 2) stockData = parts[1].trim();
                 if (extra.contains("@")) timePart = extra.substring(extra.indexOf("@")).trim();
-            }
-            // 3. Absolute fallback: Just show the raw message
-            else {
+            } else {
                 stockData = cleanBody;
             }
         } catch (Exception e) {
             return "🔔 *Alert*\n\n" + escapeMarkdown(body);
         }
 
-        // Build the final Telegram message
         StringBuilder sb = new StringBuilder();
         sb.append("🔔 *New Alert*").append("\n\n");
         if (!scanName.isEmpty()) sb.append("🧠 *Source:* ").append(escapeMarkdown(scanName)).append("\n");
-        if (!stockData.isEmpty()) sb.append("📈 *Stock:* ").append(escapeMarkdown(stockData)).append("\n");
-        if (!triggeredStocks.isEmpty()) sb.append("📋 *Full List:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
+
+        // Primary stock triggered
+        if (!stockData.isEmpty()) sb.append("📈 *Primary:* ").append(escapeMarkdown(stockData)).append("\n");
+
+        // NEW: Full list of all triggered stocks from your screenshot
+        if (!triggeredStocks.isEmpty()) {
+            sb.append("📋 *All Stocks:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
+        }
+
         if (!timePart.isEmpty()) sb.append("⏰ *Time:* ").append(escapeMarkdown(timePart)).append("\n");
 
         return sb.toString().trim();
