@@ -498,64 +498,64 @@ public class RouterController {
 
     private String buildMessage(String uid, String body) {
         if (body == null || body.trim().isEmpty()) {
-            return "🔔 *Chartink Alert*\n\nNo extra data received.";
+            return "🔔 *Alert Received*\n\nNo data payload found.";
         }
 
-        String scanName = "Manual/System Alert";
+        // Default values
+        String scanName = "External Alert";
         String stockData = "";
         String timePart = "";
         String triggeredStocks = "";
 
         try {
-            // Check if the body is JSON (Common for raw Chartink webhooks)
-            if (body.trim().startsWith("{")) {
-                // Extract the comma-separated list of stocks (the names in your screenshot)
-                triggeredStocks = extractJsonValue(body, "stocks");
+            String cleanBody = body.trim();
 
-                // Extract single symbol and price for the primary stock data line
-                String symbol = extractJsonValue(body, "symbol");
-                String price = extractJsonValue(body, "trigger_price");
+            // 1. Try to parse as JSON (IFTTT or Chartink)
+            if (cleanBody.startsWith("{")) {
+                triggeredStocks = extractJsonValue(cleanBody, "stocks");
+                String symbol = extractJsonValue(cleanBody, "symbol");
+                String price = extractJsonValue(cleanBody, "trigger_price");
+
+                // IFTTT often uses "Value1", "Value2", etc.
+                if (symbol.isEmpty()) symbol = extractJsonValue(cleanBody, "Value1");
 
                 if (!symbol.isEmpty()) {
                     stockData = symbol + (!price.isEmpty() ? " @ " + price : "");
                 }
 
-                scanName = extractJsonValue(body, "alert_name");
-                timePart = extractJsonValue(body, "triggered_at");
+                scanName = extractJsonValue(cleanBody, "alert_name");
+                if (scanName.isEmpty()) scanName = extractJsonValue(cleanBody, "title");
+
+                timePart = extractJsonValue(cleanBody, "triggered_at");
             }
-            // Fallback to existing "Extra Data" parsing logic
-            else if (body.toLowerCase().contains("extra data:")) {
-                String extra = body.substring(body.toLowerCase().indexOf("extra data:") + 11).trim();
+            // 2. Fallback to "Extra Data" string parsing
+            else if (cleanBody.toLowerCase().contains("extra data:")) {
+                String extra = cleanBody.substring(cleanBody.toLowerCase().indexOf("extra data:") + 11).trim();
                 String[] parts = extra.split(",");
                 if (parts.length >= 1) scanName = parts[0].trim();
                 if (parts.length >= 2) stockData = parts[1].trim();
                 if (extra.contains("@")) timePart = extra.substring(extra.indexOf("@")).trim();
-            } else {
-                stockData = body.trim();
+            }
+            // 3. Absolute fallback: Just show the raw message
+            else {
+                stockData = cleanBody;
             }
         } catch (Exception e) {
-            return "🔔 *Chartink Alert*\n\n" + escapeMarkdown(body);
+            return "🔔 *Alert*\n\n" + escapeMarkdown(body);
         }
 
+        // Build the final Telegram message
         StringBuilder sb = new StringBuilder();
-        sb.append("🔔 *Chartink Alert*").append("\n\n");
-
-        if (!scanName.isEmpty()) sb.append("🧠 *Scan:* ").append(escapeMarkdown(scanName)).append("\n");
-
-        // Display the specific stock and price if available
+        sb.append("🔔 *New Alert*").append("\n\n");
+        if (!scanName.isEmpty()) sb.append("🧠 *Source:* ").append(escapeMarkdown(scanName)).append("\n");
         if (!stockData.isEmpty()) sb.append("📈 *Stock:* ").append(escapeMarkdown(stockData)).append("\n");
-
-        // NEW: Display the full list of triggered stocks from your screenshot
-        if (!triggeredStocks.isEmpty()) {
-            sb.append("📋 *Triggered:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
-        }
-
+        if (!triggeredStocks.isEmpty()) sb.append("📋 *Full List:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
         if (!timePart.isEmpty()) sb.append("⏰ *Time:* ").append(escapeMarkdown(timePart)).append("\n");
 
         return sb.toString().trim();
     }
 
-    // Helper to extract values without adding heavy dependencies
+    // More robust helper to avoid "No Alerts" issues
     private String extractJsonValue(String json, String key) {
         try {
             String pattern = "\"" + key + "\":";
@@ -563,25 +563,21 @@ public class RouterController {
             if (start == -1) return "";
 
             start += pattern.length();
-            // Skip over optional whitespace and the opening quote
             while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '"' || json.charAt(start) == ':')) {
                 start++;
             }
 
-            // Find the end of the value (comma, closing brace, or closing quote)
+            int end = json.length();
+            int endQuote = json.indexOf("\"", start);
             int endComma = json.indexOf(",", start);
             int endBrace = json.indexOf("}", start);
-            int endQuote = json.indexOf("\"", start);
 
-            int end = json.length();
             if (endQuote != -1) end = Math.min(end, endQuote);
             if (endComma != -1) end = Math.min(end, endComma);
             if (endBrace != -1) end = Math.min(end, endBrace);
 
-            if (start >= end) return "";
-            return json.substring(start, end).replace("\"", "").trim();
+            return json.substring(start, end).trim();
         } catch (Exception e) {
-            // Return empty string instead of crashing the whole process
             return "";
         }
     }
