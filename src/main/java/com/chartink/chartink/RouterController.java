@@ -504,19 +504,26 @@ public class RouterController {
         String scanName = "Manual/System Alert";
         String stockData = "";
         String timePart = "";
+        String triggeredStocks = "";
 
         try {
             // Check if the body is JSON (Common for raw Chartink webhooks)
             if (body.trim().startsWith("{")) {
-                // Simple manual extraction if you don't want to add a JSON library
-                stockData = extractJsonValue(body, "symbol");
+                // Extract the comma-separated list of stocks (the names in your screenshot)
+                triggeredStocks = extractJsonValue(body, "stocks");
+
+                // Extract single symbol and price for the primary stock data line
+                String symbol = extractJsonValue(body, "symbol");
                 String price = extractJsonValue(body, "trigger_price");
-                if (!price.isEmpty()) stockData += " @ " + price;
+
+                if (!symbol.isEmpty()) {
+                    stockData = symbol + (!price.isEmpty() ? " @ " + price : "");
+                }
 
                 scanName = extractJsonValue(body, "alert_name");
                 timePart = extractJsonValue(body, "triggered_at");
             }
-            // Fallback to your existing "Extra Data" parsing logic
+            // Fallback to existing "Extra Data" parsing logic
             else if (body.toLowerCase().contains("extra data:")) {
                 String extra = body.substring(body.toLowerCase().indexOf("extra data:") + 11).trim();
                 String[] parts = extra.split(",");
@@ -532,8 +539,17 @@ public class RouterController {
 
         StringBuilder sb = new StringBuilder();
         sb.append("🔔 *Chartink Alert*").append("\n\n");
+
         if (!scanName.isEmpty()) sb.append("🧠 *Scan:* ").append(escapeMarkdown(scanName)).append("\n");
+
+        // Display the specific stock and price if available
         if (!stockData.isEmpty()) sb.append("📈 *Stock:* ").append(escapeMarkdown(stockData)).append("\n");
+
+        // NEW: Display the full list of triggered stocks from your screenshot
+        if (!triggeredStocks.isEmpty()) {
+            sb.append("📋 *Triggered:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
+        }
+
         if (!timePart.isEmpty()) sb.append("⏰ *Time:* ").append(escapeMarkdown(timePart)).append("\n");
 
         return sb.toString().trim();
