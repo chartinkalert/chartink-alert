@@ -86,7 +86,7 @@ public class RouterController {
 
         String chatId = (String) row.get("chat_id");
         int currentUsage = getTodayUsageFromDailyTable(chatId);
-        if (currentUsage >= 50) {
+        if (currentUsage >= 100) {
             return "LIMIT_EXCEEDED";
         }
         incrementTodayUsage(chatId);
