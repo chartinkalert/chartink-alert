@@ -509,12 +509,11 @@ public class RouterController {
         try {
             String cleanBody = body.trim();
 
-            // 1. Parse JSON format
             if (cleanBody.startsWith("{")) {
-                // Capture the full list of triggered stocks
+                // 1. EXTRACT THE LIST OF ALL STOCKS
                 triggeredStocks = extractJsonValue(cleanBody, "stocks");
 
-                // Extract primary symbol and price
+                // 2. Extract primary symbol and price
                 String symbol = extractJsonValue(cleanBody, "symbol");
                 String price = extractJsonValue(cleanBody, "trigger_price");
 
@@ -530,7 +529,6 @@ public class RouterController {
 
                 timePart = extractJsonValue(cleanBody, "triggered_at");
             }
-            // 2. Fallback to "Extra Data" string parsing
             else if (cleanBody.toLowerCase().contains("extra data:")) {
                 String extra = cleanBody.substring(cleanBody.toLowerCase().indexOf("extra data:") + 11).trim();
                 String[] parts = extra.split(",");
@@ -548,10 +546,10 @@ public class RouterController {
         sb.append("🔔 *New Alert*").append("\n\n");
         if (!scanName.isEmpty()) sb.append("🧠 *Source:* ").append(escapeMarkdown(scanName)).append("\n");
 
-        // Primary stock triggered
-        if (!stockData.isEmpty()) sb.append("📈 *Primary:* ").append(escapeMarkdown(stockData)).append("\n");
+        // Display the specific trigger symbol if it exists
+        if (!stockData.isEmpty()) sb.append("📈 *Triggered:* ").append(escapeMarkdown(stockData)).append("\n");
 
-        // NEW: Full list of all triggered stocks from your screenshot
+        // 3. ADD THE FULL LIST TO THE MESSAGE
         if (!triggeredStocks.isEmpty()) {
             sb.append("📋 *All Stocks:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
         }
