@@ -497,35 +497,33 @@ public class RouterController {
     }
 
     private String buildMessage(String uid, String body) {
-        // If Chartink sends empty body
         if (body == null || body.trim().isEmpty()) {
-            return "🔔 *Chartink Alert*\n\n" +
-                    "No extra data received.\n" +
-                    "_(Check your Chartink alert message body)_";
+            return "🔔 *Chartink Alert*\n\nNo extra data received.";
         }
 
-        String scanName = "";
+        String scanName = "Manual/System Alert";
         String stockData = "";
         String timePart = "";
 
         try {
-            // Example: "Extra Data: iffl 2, MTARTECH - 2114, @ 12:09 pm"
-            String lower = body.toLowerCase();
-            int idx = lower.indexOf("extra data:");
-            if (idx >= 0) {
-                String extra = body.substring(idx + "extra data:".length()).trim();
+            // Check if the body is JSON (Common for raw Chartink webhooks)
+            if (body.trim().startsWith("{")) {
+                // Simple manual extraction if you don't want to add a JSON library
+                stockData = extractJsonValue(body, "symbol");
+                String price = extractJsonValue(body, "trigger_price");
+                if (!price.isEmpty()) stockData += " @ " + price;
 
-                // Split by commas
+                scanName = extractJsonValue(body, "alert_name");
+                timePart = extractJsonValue(body, "triggered_at");
+            }
+            // Fallback to your existing "Extra Data" parsing logic
+            else if (body.toLowerCase().contains("extra data:")) {
+                String extra = body.substring(body.toLowerCase().indexOf("extra data:") + 11).trim();
                 String[] parts = extra.split(",");
-
                 if (parts.length >= 1) scanName = parts[0].trim();
                 if (parts.length >= 2) stockData = parts[1].trim();
-
-                // Grab time if present like "@ 12:09 pm"
-                int atIdx = extra.indexOf("@");
-                if (atIdx >= 0) timePart = extra.substring(atIdx).trim(); // "@ 12:09 pm"
+                if (extra.contains("@")) timePart = extra.substring(extra.indexOf("@")).trim();
             } else {
-                // If no "Extra Data:" just show the full body
                 stockData = body.trim();
             }
         } catch (Exception e) {
@@ -534,15 +532,28 @@ public class RouterController {
 
         StringBuilder sb = new StringBuilder();
         sb.append("🔔 *Chartink Alert*").append("\n\n");
-
         if (!scanName.isEmpty()) sb.append("🧠 *Scan:* ").append(escapeMarkdown(scanName)).append("\n");
         if (!stockData.isEmpty()) sb.append("📈 *Stock:* ").append(escapeMarkdown(stockData)).append("\n");
         if (!timePart.isEmpty()) sb.append("⏰ *Time:* ").append(escapeMarkdown(timePart)).append("\n");
 
-        // Optional: show raw body in smaller text if you want debugging
-        // sb.append("\n").append("_").append(escapeMarkdown(body)).append("_");
-
         return sb.toString().trim();
+    }
+
+    // Helper to extract values without adding heavy dependencies
+    private String extractJsonValue(String json, String key) {
+        String pattern = "\"" + key + "\":";
+        int start = json.indexOf(pattern);
+        if (start == -1) return "";
+
+        start += pattern.length();
+        // Skip opening quote if present
+        if (json.charAt(start) == '"') start++;
+
+        int end = json.indexOf(",", start);
+        if (end == -1) end = json.indexOf("}", start);
+
+        String value = json.substring(start, end).replace("\"", "").trim();
+        return value;
     }
 
     // ---------- Telegram sender ----------
