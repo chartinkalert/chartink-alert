@@ -563,25 +563,26 @@ public class RouterController {
             if (start == -1) return "";
 
             start += pattern.length();
+            // Skip over optional whitespace and the opening quote
             while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '"' || json.charAt(start) == ':')) {
                 start++;
             }
 
-            int end;
-            if (json.indexOf("\"", start) != -1 && json.indexOf("\"", start) < json.indexOf(",", start) && json.indexOf("\"", start) < json.indexOf("}", start)) {
-                end = json.indexOf("\"", start);
-            } else {
-                int endComma = json.indexOf(",", start);
-                int endBrace = json.indexOf("}", start);
-                if (endComma == -1) end = endBrace;
-                else if (endBrace == -1) end = endComma;
-                else end = Math.min(endComma, endBrace);
-            }
+            // Find the end of the value (comma, closing brace, or closing quote)
+            int endComma = json.indexOf(",", start);
+            int endBrace = json.indexOf("}", start);
+            int endQuote = json.indexOf("\"", start);
+
+            int end = json.length();
+            if (endQuote != -1) end = Math.min(end, endQuote);
+            if (endComma != -1) end = Math.min(end, endComma);
+            if (endBrace != -1) end = Math.min(end, endBrace);
 
             if (start >= end) return "";
             return json.substring(start, end).replace("\"", "").trim();
         } catch (Exception e) {
-            return ""; // Return empty instead of crashing
+            // Return empty string instead of crashing the whole process
+            return "";
         }
     }
 
