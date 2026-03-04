@@ -557,19 +557,32 @@ public class RouterController {
 
     // Helper to extract values without adding heavy dependencies
     private String extractJsonValue(String json, String key) {
-        String pattern = "\"" + key + "\":";
-        int start = json.indexOf(pattern);
-        if (start == -1) return "";
+        try {
+            String pattern = "\"" + key + "\":";
+            int start = json.indexOf(pattern);
+            if (start == -1) return "";
 
-        start += pattern.length();
-        // Skip opening quote if present
-        if (json.charAt(start) == '"') start++;
+            start += pattern.length();
+            while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '"' || json.charAt(start) == ':')) {
+                start++;
+            }
 
-        int end = json.indexOf(",", start);
-        if (end == -1) end = json.indexOf("}", start);
+            int end;
+            if (json.indexOf("\"", start) != -1 && json.indexOf("\"", start) < json.indexOf(",", start) && json.indexOf("\"", start) < json.indexOf("}", start)) {
+                end = json.indexOf("\"", start);
+            } else {
+                int endComma = json.indexOf(",", start);
+                int endBrace = json.indexOf("}", start);
+                if (endComma == -1) end = endBrace;
+                else if (endBrace == -1) end = endComma;
+                else end = Math.min(endComma, endBrace);
+            }
 
-        String value = json.substring(start, end).replace("\"", "").trim();
-        return value;
+            if (start >= end) return "";
+            return json.substring(start, end).replace("\"", "").trim();
+        } catch (Exception e) {
+            return ""; // Return empty instead of crashing
+        }
     }
 
     // ---------- Telegram sender ----------
