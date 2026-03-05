@@ -1,145 +1,241 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>NotifyU — Chartink Alerts to Telegram</title>
-    <meta name="description" content="NotifyU routes your Chartink webhook alerts straight to Telegram in seconds." />
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotifyU | Real-Time Trading Alerts to Telegram</title>
     <style>
-        :root { color-scheme: light dark; }
-        body{
-          margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-          background: #0b0f1a; color:#e8eefc;
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
         }
-        .wrap{ max-width: 980px; margin: 0 auto; padding: 32px 18px 60px; }
-        .top{
-          display:flex; gap:14px; align-items:center; justify-content:space-between; flex-wrap:wrap;
-          padding: 12px 0 26px;
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, sans-serif;
         }
-        .brand{ display:flex; align-items:center; gap:12px; }
-        .logo{
-          width:40px; height:40px; border-radius:12px; background: linear-gradient(135deg,#6ee7ff,#a78bfa);
-          box-shadow: 0 10px 30px rgba(120,120,255,.25);
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
         }
-        .brand h1{ margin:0; font-size: 20px; letter-spacing:.2px; }
-        .badge{ font-size:12px; opacity:.9; padding:6px 10px; border:1px solid rgba(255,255,255,.18); border-radius:999px; }
-        .hero{
-          display:grid; grid-template-columns: 1.1fr .9fr; gap:22px; align-items:start;
-          margin-top: 10px;
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
         }
-        @media (max-width:900px){ .hero{ grid-template-columns:1fr; } }
-        .card{
-          background: rgba(255,255,255,.06);
-          border: 1px solid rgba(255,255,255,.12);
-          border-radius: 18px;
-          padding: 18px 18px;
-          backdrop-filter: blur(8px);
+
+        /* Hero Section */
+        header {
+            padding: 8rem 0 4rem;
+            text-align: center;
         }
-        .card h2{ margin:4px 0 10px; font-size: 28px; line-height:1.15; }
-        .card p{ margin:0 0 14px; opacity:.92; line-height:1.5; }
-        .btns{ display:flex; gap:10px; flex-wrap:wrap; margin-top: 12px; }
-        a.btn{
-          text-decoration:none; color:#0b0f1a; font-weight:700;
-          background: #e8eefc; padding: 10px 14px; border-radius: 12px; display:inline-block;
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.025em;
         }
-        a.btn.secondary{
-          background: transparent; color:#e8eefc;
-          border: 1px solid rgba(255,255,255,.22);
-          font-weight:600;
+
+        .highlight {
+            color: var(--accent);
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        .steps ol{ margin: 10px 0 0 18px; padding: 0; }
-        .steps li{ margin: 10px 0; line-height:1.5; }
-        code, .mono{
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-          font-size: 13px;
+
+        .hero-p {
+            font-size: 1.25rem;
+            color: var(--text-dim);
+            max-width: 700px;
+            margin: 0 auto 2.5rem;
         }
-        .codebox{
-          margin-top:10px;
-          background: rgba(0,0,0,.35);
-          border: 1px solid rgba(255,255,255,.10);
-          padding: 12px; border-radius: 14px;
-          overflow:auto;
+
+        .cta-button {
+            display: inline-block;
+            background-color: var(--accent);
+            color: #000;
+            padding: 1rem 2.5rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            font-size: 1.1rem;
         }
-        .foot{
-          margin-top: 24px; opacity:.75; font-size: 13px; line-height:1.5;
-          display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+
+        .cta-button:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(56, 189, 248, 0.4);
         }
-        .foot a{ color:#cbd5ff; text-decoration:none; }
-        .pill{
-          display:inline-flex; gap:8px; align-items:center;
-          padding:6px 10px; border-radius:999px;
-          border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04);
-          font-size:12px;
+
+        /* Features Section */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card p {
+            color: var(--text-dim);
+        }
+
+        /* How it works */
+        .how-it-works {
+            padding: 6rem 0;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .how-it-works h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 4rem;
+        }
+
+        .step-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 3rem;
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 2rem;
+        }
+
+        .step-num {
+            background: var(--accent);
+            color: #000;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .step-content h4 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-content code {
+            background: #000;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            color: var(--accent);
+        }
+
+        footer {
+            text-align: center;
+            padding: 4rem 0;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            header { padding: 4rem 0 2rem; }
         }
     </style>
 </head>
 <body>
-<div class="wrap">
-    <div class="top">
-        <div class="brand">
-            <div class="logo" aria-hidden="true"></div>
-            <div>
-                <h1>NotifyU</h1>
-                <div class="badge">Chartink → Telegram alerts</div>
-            </div>
-        </div>
-        <div class="pill">✅ Secure per-user UID + key</div>
-    </div>
 
-    <div class="hero">
+<div class="container">
+    <header>
+        <h1>Stop Chasing Emails. <br><span class="highlight">Start Trading Alerts.</span></h1>
+        <p class="hero-p">NotifyU bridges the gap between your scanners and your phone. Get formatted, real-time alerts from Chartink and TradingView delivered instantly to Telegram.</p>
+        <a href="https://t.me/Notifyu1_bot" class="cta-button">Connect to Bot</a>
+    </header>
+
+    <section class="features">
         <div class="card">
-            <h2>Get Chartink alerts instantly on Telegram.</h2>
-            <p>
-                NotifyU routes your Chartink webhook alerts to your Telegram chat in seconds.
-                No app installs. No manual forwarding.
-            </p>
+            <h3>⚡ Instant Delivery</h3>
+            <p>Seconds matter in trading. Our high-performance router ensures your alerts hit Telegram the moment they trigger on the server.</p>
+        </div>
+        <div class="card">
+            <h3>📋 Smart Parsing</h3>
+            <p>We don't just send raw text. We parse Chartink JSON to show you the full list of triggered stocks in a clean, readable format.</p>
+        </div>
+        <div class="card">
+            <h3>🔒 Secure Routing</h3>
+            <p>Your unique UID and security key act as a private tunnel. Only you receive the alerts you set up.</p>
+        </div>
+    </section>
 
-            <div class="btns">
-                <!-- Replace notifyu_bot with your exact bot username -->
-                <a class="btn" href="https://t.me/notifyu1_bot" target="_blank" rel="noreferrer">Open Telegram Bot</a>
-                <a class="btn secondary" href="#how">How it works</a>
-                <a class="btn secondary" href="/health" target="_blank" rel="noreferrer">Status</a>
+    <section class="how-it-works" id="setup">
+        <h2>Human-Simple Setup</h2>
+        <div class="step-grid">
+            <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                    <h4>Generate Your Key</h4>
+                    <p>Message <a href="https://t.me/Notifyu1_bot">@Notifyu1_bot</a> on Telegram and click <code>/start</code>. The bot will instantly generate your unique Webhook URL.</p>
+                </div>
             </div>
-
-            <div class="foot">
-                <span>Need help?</span>
-                <a href="#how">Setup steps</a>
-                <a href="/privacy">Privacy</a>
-                <a href="/terms">Terms</a>
+            <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                    <h4>Paste in Chartink/TradingView</h4>
+                    <p>Copy your URL and paste it into the Webhook field of your alert settings. Ensure you select JSON format to get the best-looking alerts.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                    <h4>Receive & React</h4>
+                    <p>That's it. Your Telegram will now buzz with formatted stock names, prices, and scan details the moment a signal is generated.</p>
+                </div>
             </div>
         </div>
+    </section>
 
-        <div class="card steps" id="how">
-            <h3 style="margin:0 0 8px;">Setup in 60 seconds</h3>
-            <ol>
-                <li>Open <span class="mono">@notifyu_bot</span> on Telegram and send <span class="mono">/start</span>.</li>
-                <li>Send <span class="mono">/myuid</span> and copy the webhook URL it gives you.</li>
-                <li>Paste that URL into your Chartink alert webhook field.</li>
-                <li>Trigger the alert → you’ll receive a message instantly.</li>
-            </ol>
-
-            <div class="codebox">
-                <div style="opacity:.85; margin-bottom:8px;">Example webhook format:</div>
-                <code>https://notifyu.me/chartink?uid=YOUR_UID&amp;key=YOUR_KEY</code>
-            </div>
-
-            <div class="codebox">
-                <div style="opacity:.85; margin-bottom:8px;">Useful commands:</div>
-                <code>
-                    /myuid  - show webhook URL<br/>
-                    /newuid - rotate UID + key<br/>
-                    /unlink - remove link
-                </code>
-            </div>
-        </div>
-    </div>
-
-    <div class="foot" style="margin-top:28px;">
-        <span class="pill">🔒 We don’t store your Chartink scans</span>
-        <span class="pill">⚡ Lightweight & fast</span>
-        <span class="pill">🌍 Works globally</span>
-    </div>
+    <footer>
+        <p>NotifyU is an independent tool for traders. Need help? Message our bot.</p>
+        <p style="margin-top: 1rem;">Built by a trader, for the community. © 2026 NotifyU.</p>
+    </footer>
 </div>
+
 </body>
 </html>
