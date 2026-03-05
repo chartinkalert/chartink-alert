@@ -504,20 +504,19 @@ public class RouterController {
         String scanName = "External Alert";
         String stockData = "";
         String timePart = "";
-        String triggeredStocks = ""; // For multiple stocks
+        String triggeredStocks = "";
 
         try {
             String cleanBody = body.trim();
 
             if (cleanBody.startsWith("{")) {
-                // 1. CAPTURE ALL STOCKS (this is what's missing)
+                // 1. Get the full list of symbols (e.g., "SBIN, RELIANCE, TCS")
                 triggeredStocks = extractJsonValue(cleanBody, "stocks");
 
-                // 2. Extract specific trigger details
+                // 2. Get the primary trigger symbol and price
                 String symbol = extractJsonValue(cleanBody, "symbol");
                 String price = extractJsonValue(cleanBody, "trigger_price");
 
-                // IFTTT fallback logic
                 if (symbol.isEmpty()) symbol = extractJsonValue(cleanBody, "Value1");
 
                 if (!symbol.isEmpty()) {
@@ -530,7 +529,6 @@ public class RouterController {
                 timePart = extractJsonValue(cleanBody, "triggered_at");
             }
             else if (cleanBody.toLowerCase().contains("extra data:")) {
-                // Existing fallback parsing for string-based triggers
                 String extra = cleanBody.substring(cleanBody.toLowerCase().indexOf("extra data:") + 11).trim();
                 String[] parts = extra.split(",");
                 if (parts.length >= 1) scanName = parts[0].trim();
@@ -543,17 +541,16 @@ public class RouterController {
             return "🔔 *Alert*\n\n" + escapeMarkdown(body);
         }
 
-        // Build the final Telegram message
         StringBuilder sb = new StringBuilder();
         sb.append("🔔 *New Alert*").append("\n\n");
         if (!scanName.isEmpty()) sb.append("🧠 *Scan:* ").append(escapeMarkdown(scanName)).append("\n");
 
-        // Display the specific trigger stock
-        if (!stockData.isEmpty()) sb.append("📈 *Triggered:* ").append(escapeMarkdown(stockData)).append("\n");
+        // If we have a specific trigger stock, show it
+        if (!stockData.isEmpty()) sb.append("📈 *Trigger:* ").append(escapeMarkdown(stockData)).append("\n");
 
-        // 3. ADD THE FULL LIST TO THE MESSAGE
+        // NEW: Always show the full list if 'stocks' field was present in the JSON
         if (!triggeredStocks.isEmpty()) {
-            sb.append("📋 *All Stocks:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
+            sb.append("📋 *Full List:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
         }
 
         if (!timePart.isEmpty()) sb.append("⏰ *Time:* ").append(escapeMarkdown(timePart)).append("\n");
@@ -569,19 +566,23 @@ public class RouterController {
             if (start == -1) return "";
 
             start += pattern.length();
+            // Skip whitespace, colons, and opening quotes
             while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '"' || json.charAt(start) == ':')) {
                 start++;
             }
 
-            int end = json.length();
-            int endQuote = json.indexOf("\"", start);
-            int endComma = json.indexOf(",", start);
-            int endBrace = json.indexOf("}", start);
+            // Find the ending quote of the value
+            int end = json.indexOf("\"", start);
+            if (end == -1) {
+                // Fallback for unquoted numbers/values
+                int endComma = json.indexOf(",", start);
+                int endBrace = json.indexOf("}", start);
+                if (endComma == -1) end = endBrace;
+                else if (endBrace == -1) end = endComma;
+                else end = Math.min(endComma, endBrace);
+            }
 
-            if (endQuote != -1) end = Math.min(end, endQuote);
-            if (endComma != -1) end = Math.min(end, endComma);
-            if (endBrace != -1) end = Math.min(end, endBrace);
-
+            if (start >= end) return "";
             return json.substring(start, end).trim();
         } catch (Exception e) {
             return "";
