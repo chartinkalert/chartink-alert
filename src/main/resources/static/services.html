@@ -3,93 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Premium Services | NotifyU</title>
+    <title>Other Premium Services | notifyu.me</title>
     <style>
-        :root {
-            --bg-dark: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-dim: #94a3b8;
-            --accent: #38bdf8;
-            --linkedin: #0077b5;
-        }
-
+        :root { --bg-dark: #0f172a; --card-bg: #1e293b; --text-main: #f8fafc; --text-dim: #94a3b8; --accent: #38bdf8; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background-color: var(--bg-dark); color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        body { background-color: var(--bg-dark); color: var(--text-main); padding: 2rem; }
+        .container { max-width: 900px; margin: 0 auto; text-align: center; }
+        h1 { margin-bottom: 3rem; font-size: 2.5rem; }
 
-        .container { max-width: 500px; width: 100%; text-align: center; }
+        .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; }
 
-        .card {
+        .service-card {
             background: var(--card-bg);
-            padding: 3rem;
-            border-radius: 2rem;
-            border: 1px solid rgba(255,255,255,0.05);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-
-        .back-link { color: var(--text-dim); text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 2rem; }
-        .back-link:hover { color: var(--accent); }
-
-        h1 { margin-bottom: 2rem; font-size: 2rem; }
-
-        .product-badge {
-            background: var(--linkedin);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            display: inline-block;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-        }
-
-        .details { text-align: left; margin: 2rem 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; }
-        .detail-row { display: flex; justify-content: space-between; margin-bottom: 1rem; }
-        .label { color: var(--text-dim); }
-        .value { font-weight: 600; color: var(--accent); }
-
-        .tg-button {
-            display: block;
-            background-color: #0088cc;
-            color: white;
-            padding: 1.2rem;
-            border-radius: 1rem;
+            border-radius: 1.5rem;
+            overflow: hidden;
             text-decoration: none;
-            font-weight: 700;
-            margin-top: 2rem;
-            transition: transform 0.2s;
+            color: inherit;
+            transition: transform 0.3s, border-color 0.3s;
+            border: 1px solid rgba(255,255,255,0.05);
         }
 
-        .tg-button:hover { transform: scale(1.02); }
+        .service-card:hover { transform: translateY(-10px); border-color: var(--accent); }
+
+        .service-img {
+            width: 100%;
+            height: 180px;
+            background: #0077b5; /* LinkedIn Color placeholder */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+
+        .service-info { padding: 1.5rem; }
+        .service-info h3 { margin-bottom: 0.5rem; color: var(--accent); }
+        .back-home { display: inline-block; margin-bottom: 2rem; color: var(--text-dim); text-decoration: none; }
     </style>
 </head>
 <body>
-
 <div class="container">
-    <a href="/" class="back-link">← Back to NotifyU</a>
-    <div class="card">
-        <h1>Premium Services</h1>
-        <div class="product-badge">LinkedIn Premium</div>
+    <a href="/" class="back-home">← Back to notifyu.me</a>
+    <h1>Premium Services</h1>
 
-        <div class="details">
-            <div class="detail-row">
-                <span class="label">Plan:</span>
-                <span class="value">Career</span>
-            </div>
-            <div class="detail-row">
-                <span class="label">Validity:</span>
-                <span class="value">3 Months</span>
-            </div>
-            <div class="detail-row">
-                <span class="label">Availability:</span>
-                <span class="value">Instant Activation</span>
+    <div class="services-grid">
+        <a href="/linkedin-premium.html" class="service-card">
+            <div class="service-img">in</div> <div class="service-info">
+            <h3>LinkedIn Premium</h3>
+            <p style="color: var(--text-dim);">Career Plan - 3 Months</p>
+        </div>
+        </a>
+
+        <div class="service-card" style="opacity: 0.5; cursor: not-allowed;">
+            <div class="service-img" style="background: #333;">?</div>
+            <div class="service-info">
+                <h3>Coming Soon</h3>
+                <p>More services being added...</p>
             </div>
         </div>
-
-        <p style="color: var(--text-dim); font-size: 0.9rem;">To purchase or inquire, contact me directly on Telegram.</p>
-
-        <a href="https://t.me/Mrpremium10" class="tg-button">Contact via Telegram</a>
     </div>
 </div>
-
 </body>
 </html>
