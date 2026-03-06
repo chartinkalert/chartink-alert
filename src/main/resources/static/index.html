@@ -36,9 +36,19 @@
             padding: 0 2rem;
         }
 
+        /* Navbar/Brand */
+        nav {
+            padding: 2rem 0;
+            display: flex;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+        }
+
         /* Hero Section */
         header {
-            padding: 8rem 0 4rem;
+            padding: 4rem 0 4rem;
             text-align: center;
         }
 
@@ -115,12 +125,12 @@
         }
 
         /* How it works */
-        .how-it-works {
+        .how-it-works, .other-services {
             padding: 6rem 0;
             border-top: 1px solid rgba(255,255,255,0.05);
         }
 
-        .how-it-works h2 {
+        .how-it-works h2, .other-services h2 {
             text-align: center;
             font-size: 2.5rem;
             margin-bottom: 4rem;
@@ -163,6 +173,23 @@
             color: var(--accent);
         }
 
+        /* Premium Services List */
+        .service-list {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .service-item {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid var(--accent);
+            padding: 1rem 2rem;
+            border-radius: 1rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
         footer {
             text-align: center;
             padding: 4rem 0;
@@ -178,13 +205,17 @@
 
         @media (max-width: 768px) {
             h1 { font-size: 2.5rem; }
-            header { padding: 4rem 0 2rem; }
+            header { padding: 2rem 0 2rem; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <nav>
+        <span class="highlight">notifyu.me</span>
+    </nav>
+
     <header>
         <h1>Stop Chasing Emails. <br><span class="highlight">Start Trading Alerts.</span></h1>
         <p class="hero-p">NotifyU bridges the gap between your scanners and your phone. Get formatted, real-time alerts from Chartink and TradingView delivered instantly to Telegram.</p>
@@ -233,9 +264,17 @@
         </div>
     </section>
 
+    <section class="other-services">
+        <h2>Other Premium Services</h2>
+        <div class="service-list">
+            <div class="service-item">LinkedIn Premium (Career Plan - 3 Months)</div>
+        </div>
+    </section>
+
     <footer>
-        <p>NotifyU is an independent tool for traders. Need help? Message our bot.</p>
-        <p style="margin-top: 1rem;">Built by a trader, for the community. © 2026 NotifyU.</p>
+        <p>NotifyU is an independent tool for traders. Need help? Message our bot or email us.</p>
+        <p style="margin-top: 0.5rem;"><a href="mailto:support@notifyu.me">support@notifyu.me</a></p>
+        <p style="margin-top: 1.5rem;">Built by a trader, for the community. © 2026 NotifyU.</p>
     </footer>
 </div>
 
