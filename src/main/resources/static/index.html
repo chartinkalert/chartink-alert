@@ -36,19 +36,39 @@
             padding: 0 2rem;
         }
 
-        /* Navbar/Brand */
+        /* Navbar */
         nav {
             padding: 2rem 0;
             display: flex;
-            justify-content: center;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
             font-size: 1.5rem;
             font-weight: 800;
             letter-spacing: -0.05em;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .nav-link {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: color 0.2s;
+            margin-left: auto; /* Pushes it to the right */
+        }
+
+        .nav-link:hover {
+            color: var(--accent);
         }
 
         /* Hero Section */
         header {
-            padding: 4rem 0 4rem;
+            padding: 6rem 0 4rem;
             text-align: center;
         }
 
@@ -125,12 +145,12 @@
         }
 
         /* How it works */
-        .how-it-works, .other-services {
+        .how-it-works {
             padding: 6rem 0;
             border-top: 1px solid rgba(255,255,255,0.05);
         }
 
-        .how-it-works h2, .other-services h2 {
+        .how-it-works h2 {
             text-align: center;
             font-size: 2.5rem;
             margin-bottom: 4rem;
@@ -173,23 +193,6 @@
             color: var(--accent);
         }
 
-        /* Premium Services List */
-        .service-list {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-        }
-
-        .service-item {
-            background: rgba(56, 189, 248, 0.1);
-            border: 1px solid var(--accent);
-            padding: 1rem 2rem;
-            border-radius: 1rem;
-            font-weight: 600;
-            color: var(--accent);
-        }
-
         footer {
             text-align: center;
             padding: 4rem 0;
@@ -206,6 +209,8 @@
         @media (max-width: 768px) {
             h1 { font-size: 2.5rem; }
             header { padding: 2rem 0 2rem; }
+            .logo { position: static; transform: none; }
+            nav { flex-direction: column; gap: 1rem; }
         }
     </style>
 </head>
@@ -213,7 +218,8 @@
 
 <div class="container">
     <nav>
-        <span class="highlight">notifyu.me</span>
+        <span class="logo highlight">notifyu.me</span>
+        <a href="/services.html" class="nav-link">Other Premium Services</a>
     </nav>
 
     <header>
@@ -261,13 +267,6 @@
                     <p>That's it. Your Telegram will now buzz with formatted stock names, prices, and scan details the moment a signal is generated.</p>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <section class="other-services">
-        <h2>Other Premium Services</h2>
-        <div class="service-list">
-            <div class="service-item">LinkedIn Premium (Career Plan - 3 Months)</div>
         </div>
     </section>
 
