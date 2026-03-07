@@ -8,19 +8,20 @@
     <meta name="google-site-verification" content="RmYxpyWZLFTaYhGEOhpZo87TmjLJ5RTvUrrEkgOVj-A" />
     <style>
         :root {
-            --bg-dark: #050810;        /* Deepest navy-black */
-            --card-bg: #0f172a;        /* Subtle blue-grey for cards */
-            --text-main: #f8fafc;
-            --text-dim: #94a3b8;
-            --accent: #818cf8;         /* Soft Royal Purple */
-            --accent-secondary: #38bdf8; /* Electric Blue */
-            --btn-grad: linear-gradient(135deg, #818cf8 0%, #38bdf8 100%);
+            --bg-main: #ffffff;        /* Clean White Background */
+            --bg-offset: #f8fafc;      /* Very light grey for sections */
+            --card-bg: #ffffff;        /* White cards */
+            --text-main: #0f172a;      /* Dark navy for high-readability text */
+            --text-dim: #475569;       /* Slate grey for secondary text */
+            --accent-pink: #ff69b4;    /* Pink from logo */
+            --accent-blue: #38bdf8;    /* Blue from logo */
+            --btn-grad: linear-gradient(135deg, #ff69b4 0%, #38bdf8 100%); /* */
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
 
         body {
-            background-color: var(--bg-dark);
+            background-color: var(--bg-main);
             color: var(--text-main);
             line-height: 1.6;
             overflow-x: hidden;
@@ -30,7 +31,7 @@
 
         /* Navbar */
         nav {
-            padding: 2rem 0;
+            padding: 1.5rem 0;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -46,10 +47,14 @@
             transition: color 0.2s;
         }
 
-        .nav-link:hover { color: var(--accent-secondary); }
+        .nav-link:hover { color: var(--accent-pink); }
 
         /* Hero Section */
-        header { padding: 8rem 0 5rem; text-align: center; }
+        header {
+            padding: 6rem 0 4rem;
+            text-align: center;
+            background: radial-gradient(circle at top, #f0f9ff 0%, #ffffff 70%); /* Subtle blue tint at top */
+        }
 
         h1 {
             font-size: 3.8rem;
@@ -57,6 +62,7 @@
             margin-bottom: 1.5rem;
             letter-spacing: -0.04em;
             line-height: 1.1;
+            color: #0f172a;
         }
 
         .highlight {
@@ -84,29 +90,28 @@
             text-decoration: none;
             transition: all 0.3s ease;
             font-size: 1.1rem;
-            box-shadow: 0 10px 20px -10px rgba(129, 140, 248, 0.5);
+            box-shadow: 0 10px 25px -5px rgba(255, 105, 180, 0.4);
         }
 
         .cta-button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 15px 30px -10px rgba(56, 189, 248, 0.6);
-            filter: brightness(1.1);
+            box-shadow: 0 20px 30px -10px rgba(56, 189, 248, 0.5);
         }
 
         .secondary-button {
-            background: rgba(255,255,255,0.05);
-            color: white;
+            background: #ffffff;
+            color: var(--text-main);
             padding: 1rem 2.5rem;
             border-radius: 12px;
             text-decoration: none;
             font-weight: 600;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid #e2e8f0;
             transition: all 0.2s;
         }
 
-        .secondary-button:hover { background: rgba(255,255,255,0.1); border-color: var(--accent-secondary); }
+        .secondary-button:hover { border-color: var(--accent-blue); background: var(--bg-offset); }
 
-        /* Features */
+        /* Features Cards */
         .features {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -118,28 +123,41 @@
             background: var(--card-bg);
             padding: 2.5rem;
             border-radius: 2rem;
-            border: 1px solid rgba(255,255,255,0.03);
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
             transition: all 0.3s ease;
         }
 
-        .card:hover { border-color: var(--accent-secondary); background: #161e31; }
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-blue);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
 
-        .card h3 { font-size: 1.4rem; margin-bottom: 1rem; color: var(--accent-secondary); }
+        .card h3 { font-size: 1.4rem; margin-bottom: 1rem; color: var(--accent-blue); }
 
-        /* Steps */
-        .how-it-works { padding: 6rem 0; border-top: 1px solid rgba(255,255,255,0.05); }
-        .how-it-works h2 { text-align: center; font-size: 2.5rem; margin-bottom: 4rem; }
-        .step { display: flex; gap: 2rem; margin-bottom: 3rem; }
+        /* Steps Section */
+        .how-it-works { padding: 6rem 0; background-color: var(--bg-offset); }
+        .how-it-works h2 { text-align: center; font-size: 2.5rem; margin-bottom: 4rem; color: #0f172a; }
+
+        .step { display: flex; gap: 2rem; margin-bottom: 3rem; align-items: flex-start; }
         .step-num {
             background: var(--btn-grad);
+            color: white;
             width: 44px; height: 44px;
             border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             font-weight: 800; flex-shrink: 0;
         }
 
-        footer { text-align: center; padding: 6rem 0 3rem; color: var(--text-dim); border-top: 1px solid rgba(255,255,255,0.05); }
-        footer a { color: var(--accent-secondary); text-decoration: none; }
+        footer {
+            text-align: center;
+            padding: 4rem 0;
+            color: var(--text-dim);
+            background: #ffffff;
+            border-top: 1px solid #f1f5f9;
+        }
+        footer a { color: var(--accent-pink); text-decoration: none; font-weight: 600; }
 
         @media (max-width: 768px) {
             h1 { font-size: 2.8rem; }
@@ -156,59 +174,65 @@
         </a>
         <a href="/services.html" class="nav-link">Premium Services</a>
     </nav>
+</div>
 
-    <header>
+<header>
+    <div class="container">
         <h1>Stop Chasing Emails. <br><span class="highlight">Trade with Precision.</span></h1>
-        <p class="hero-p">NotifyU bridges the gap between your scanners and your phone. Get formatted, real-time alerts from Chartink and TradingView delivered instantly to Telegram.</p>
+        <p class="hero-p">NotifyU bridges the gap between your scanners and your phone. Get formatted, real-time alerts delivered instantly to Telegram.</p>
 
         <div class="cta-group">
             <a href="https://t.me/Notifyu1_bot" class="cta-button">Connect to Bot</a>
             <a href="/services.html" class="secondary-button">View Services</a>
         </div>
-    </header>
+    </div>
+</header>
 
+<div class="container">
     <section class="features">
         <div class="card">
             <h3>⚡ Instant Delivery</h3>
-            <p>Seconds matter. Our high-performance router ensures alerts hit your Telegram the moment they trigger.</p>
+            <p>Seconds matter in trading. Our high-performance router ensures alerts hit your Telegram instantly.</p>
         </div>
         <div class="card">
             <h3>📋 Smart Parsing</h3>
-            <p>We parse Chartink JSON automatically, displaying triggered stocks in a clean, professional format.</p>
+            <p>We parse Chartink JSON automatically, displaying triggered stocks in a clean format.</p>
         </div>
         <div class="card">
             <h3>🔒 Secure Routing</h3>
             <p>Your unique UID and security key act as a private tunnel for your trade signals.</p>
         </div>
     </section>
+</div>
 
-    <section class="how-it-works">
+<section class="how-it-works">
+    <div class="container" style="max-width: 800px;">
         <h2>3-Step Setup</h2>
-        <div class="container" style="max-width: 800px;">
-            <div class="step">
-                <div class="step-num">1</div>
-                <div class="step-content">
-                    <h4>Generate Your Key</h4>
-                    <p>Message <a href="https://t.me/Notifyu1_bot">@Notifyu1_bot</a> and click <code>/start</code> to get your URL.</p>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num">2</div>
-                <div class="step-content">
-                    <h4>Add Webhook</h4>
-                    <p>Paste the URL into Chartink or TradingView alert settings using JSON format.</p>
-                </div>
-            </div>
-            <div class="step">
-                <div class="step-num">3</div>
-                <div class="step-content">
-                    <h4>Get Alerts</h4>
-                    <p>Receive real-time, formatted notifications directly on your phone or desktop.</p>
-                </div>
+        <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+                <h4>Generate Your Key</h4>
+                <p>Message <a href="https://t.me/Notifyu1_bot">@Notifyu1_bot</a> and click <code>/start</code> to get your URL.</p>
             </div>
         </div>
-    </section>
+        <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+                <h4>Add Webhook</h4>
+                <p>Paste the URL into Chartink or TradingView alert settings using JSON format.</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+                <h4>Get Alerts</h4>
+                <p>Receive real-time, formatted notifications directly on your phone or desktop.</p>
+            </div>
+        </div>
+    </div>
+</section>
 
+<div class="container">
     <footer>
         <p>© 2026 NotifyU. Built for the trading community.</p>
         <p style="margin-top: 1rem;"><a href="mailto:support@notifyu.me">support@notifyu.me</a></p>
