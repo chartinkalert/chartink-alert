@@ -13,9 +13,8 @@
             --card-bg: #ffffff;        /* White cards */
             --text-main: #0f172a;      /* Dark navy for high-readability text */
             --text-dim: #475569;       /* Slate grey for secondary text */
-            --accent-pink: #ff69b4;    /* Pink from logo */
-            --accent-blue: #38bdf8;    /* Blue from logo */
-            --btn-grad: linear-gradient(135deg, #ff69b4 0%, #38bdf8 100%); /* */
+            --accent-pink: #ff69b4;    /* Plain Pink from logo */
+            --accent-blue: #38bdf8;    /* Plain Blue from logo */
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
@@ -53,7 +52,7 @@
         header {
             padding: 6rem 0 4rem;
             text-align: center;
-            background: radial-gradient(circle at top, #f0f9ff 0%, #ffffff 70%); /* Subtle blue tint at top */
+            background-color: var(--bg-main);
         }
 
         h1 {
@@ -66,9 +65,7 @@
         }
 
         .highlight {
-            background: var(--btn-grad);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--accent-blue); /* Plain Blue highlight */
         }
 
         .hero-p {
@@ -82,7 +79,7 @@
         .cta-group { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
 
         .cta-button {
-            background: var(--btn-grad);
+            background-color: var(--accent-pink); /* Plain Pink button */
             color: white;
             padding: 1rem 2.5rem;
             border-radius: 12px;
@@ -90,12 +87,13 @@
             text-decoration: none;
             transition: all 0.3s ease;
             font-size: 1.1rem;
-            box-shadow: 0 10px 25px -5px rgba(255, 105, 180, 0.4);
+            box-shadow: 0 4px 14px 0 rgba(255, 105, 180, 0.39);
         }
 
         .cta-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 20px 30px -10px rgba(56, 189, 248, 0.5);
+            transform: translateY(-2px);
+            background-color: #f652a6; /* Slightly darker pink for hover */
+            box-shadow: 0 6px 20px rgba(255, 105, 180, 0.23);
         }
 
         .secondary-button {
@@ -124,7 +122,7 @@
             padding: 2.5rem;
             border-radius: 2rem;
             border: 1px solid #f1f5f9;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
         }
 
@@ -142,7 +140,7 @@
 
         .step { display: flex; gap: 2rem; margin-bottom: 3rem; align-items: flex-start; }
         .step-num {
-            background: var(--btn-grad);
+            background-color: var(--accent-blue); /* Plain Blue step numbers */
             color: white;
             width: 44px; height: 44px;
             border-radius: 12px;
