@@ -10,9 +10,8 @@
             --bg-offset: #f8fafc;
             --text-main: #0f172a;
             --text-dim: #475569;
-            --accent-pink: #ff69b4;
-            --accent-blue: #38bdf8;
-            --btn-grad: linear-gradient(135deg, #ff69b4 0%, #38bdf8 100%);
+            --accent-pink: #ff69b4; /* Plain Pink from logo */
+            --accent-blue: #38bdf8; /* Plain Blue from logo */
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
@@ -22,7 +21,8 @@
 
         nav { padding: 2rem 0; display: flex; align-items: center; justify-content: space-between; }
         .logo img { height: 45px; width: auto; }
-        .nav-link { color: var(--text-dim); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+        .nav-link { color: var(--text-dim); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: color 0.2s; }
+        .nav-link:hover { color: var(--accent-pink); }
 
         .product-grid {
             display: grid;
@@ -65,7 +65,7 @@
 
         .tg-button {
             display: block;
-            background: var(--btn-grad);
+            background-color: var(--accent-pink); /* Solid Pink Button */
             color: white;
             padding: 1.2rem;
             border-radius: 16px;
@@ -73,11 +73,15 @@
             font-weight: 700;
             text-align: center;
             font-size: 1.1rem;
-            box-shadow: 0 10px 25px -5px rgba(255, 105, 180, 0.4);
+            box-shadow: 0 4px 14px 0 rgba(255, 105, 180, 0.39);
             transition: all 0.3s ease;
         }
 
-        .tg-button:hover { transform: translateY(-3px); box-shadow: 0 20px 30px -10px rgba(56, 189, 248, 0.5); }
+        .tg-button:hover {
+            transform: translateY(-3px);
+            background-color: #f652a6; /* Slightly deeper pink for hover */
+            box-shadow: 0 15px 30px -10px rgba(255, 105, 180, 0.5);
+        }
 
         @media (max-width: 768px) {
             .product-grid { grid-template-columns: 1fr; gap: 2rem; }
