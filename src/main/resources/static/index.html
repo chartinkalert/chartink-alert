@@ -5,97 +5,145 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NotifyU | Real-Time Trading Alerts to Telegram</title>
     <link rel="manifest" href="/manifest.json">
+    <meta name="google-site-verification" content="RmYxpyWZLFTaYhGEOhpZo87TmjLJ5RTvUrrEkgOVj-A" />
     <style>
         :root {
-            /* Clean Dark Mode Palette */
-            --bg-dark: #0a0f1a;        /* Deep midnight blue-black */
-            --card-bg: #161e2e;        /* Subtle slate for cards */
-            --text-main: #ffffff;
-            --text-dim: #94a3b8;       /* Slate-400 for secondary text */
-
-            /* Brand Colors (Pink & Blue) */
-            --brand-pink: #ff69b4;
-            --brand-blue: #38bdf8;
-            --accent-hover: #db2777;
+            --bg-dark: #050810;        /* Deepest navy-black */
+            --card-bg: #0f172a;        /* Subtle blue-grey for cards */
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --accent: #818cf8;         /* Soft Royal Purple */
+            --accent-secondary: #38bdf8; /* Electric Blue */
+            --btn-grad: linear-gradient(135deg, #818cf8 0%, #38bdf8 100%);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
-        body { background-color: var(--bg-dark); color: var(--text-main); line-height: 1.6; overflow-x: hidden; }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
         .container { max-width: 1100px; margin: 0 auto; padding: 0 2rem; }
 
-        /* Navbar Enhancement */
-        nav { padding: 2rem 0; display: flex; align-items: center; justify-content: space-between; }
-        .logo img { height: 45px; width: auto; vertical-align: middle; }
-        .nav-link { color: var(--text-dim); text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: 0.2s; }
-        .nav-link:hover { color: var(--brand-blue); }
+        /* Navbar */
+        nav {
+            padding: 2rem 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo img { height: 42px; width: auto; vertical-align: middle; }
+
+        .nav-link {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover { color: var(--accent-secondary); }
 
         /* Hero Section */
         header { padding: 8rem 0 5rem; text-align: center; }
-        h1 { font-size: 4rem; font-weight: 900; margin-bottom: 1.5rem; letter-spacing: -0.05em; line-height: 1.1; }
 
-        /* Gradient Text using Brand Colors */
-        .highlight {
-            background: linear-gradient(90deg, var(--brand-pink), var(--brand-blue));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 900;
+        h1 {
+            font-size: 3.8rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.04em;
+            line-height: 1.1;
         }
 
-        .hero-p { font-size: 1.25rem; color: var(--text-dim); max-width: 700px; margin: 0 auto 3rem; }
+        .highlight {
+            background: var(--btn-grad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
 
-        /* Prominent CTA Button */
+        .hero-p {
+            font-size: 1.25rem;
+            color: var(--text-dim);
+            max-width: 650px;
+            margin: 0 auto 3rem;
+        }
+
+        /* Buttons */
+        .cta-group { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
         .cta-button {
-            display: inline-block;
-            background: linear-gradient(135deg, var(--brand-pink) 0%, var(--brand-blue) 100%);
+            background: var(--btn-grad);
             color: white;
-            padding: 1.2rem 3rem;
+            padding: 1rem 2.5rem;
             border-radius: 12px;
-            font-weight: 800;
+            font-weight: 700;
             text-decoration: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            font-size: 1.2rem;
-            box-shadow: 0 10px 25px -5px rgba(255, 105, 180, 0.4);
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
+            box-shadow: 0 10px 20px -10px rgba(129, 140, 248, 0.5);
         }
 
         .cta-button:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 20px 35px -5px rgba(56, 189, 248, 0.5);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px -10px rgba(56, 189, 248, 0.6);
             filter: brightness(1.1);
         }
 
-        /* Feature Cards */
-        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin: 4rem 0; }
+        .secondary-button {
+            background: rgba(255,255,255,0.05);
+            color: white;
+            padding: 1rem 2.5rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s;
+        }
+
+        .secondary-button:hover { background: rgba(255,255,255,0.1); border-color: var(--accent-secondary); }
+
+        /* Features */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+
         .card {
             background: var(--card-bg);
-            padding: 3rem;
-            border-radius: 24px;
+            padding: 2.5rem;
+            border-radius: 2rem;
             border: 1px solid rgba(255,255,255,0.03);
-            transition: 0.3s ease;
+            transition: all 0.3s ease;
         }
-        .card:hover {
-            transform: translateY(-8px);
-            border-color: var(--brand-blue);
-            background: rgba(22, 30, 46, 0.8);
-        }
-        .card h3 { font-size: 1.6rem; margin-bottom: 1.2rem; color: var(--brand-blue); }
-        .card p { color: var(--text-dim); font-size: 1.05rem; }
 
-        /* Setup Steps */
-        .how-it-works { padding: 8rem 0; border-top: 1px solid rgba(255,255,255,0.05); }
+        .card:hover { border-color: var(--accent-secondary); background: #161e31; }
+
+        .card h3 { font-size: 1.4rem; margin-bottom: 1rem; color: var(--accent-secondary); }
+
+        /* Steps */
+        .how-it-works { padding: 6rem 0; border-top: 1px solid rgba(255,255,255,0.05); }
+        .how-it-works h2 { text-align: center; font-size: 2.5rem; margin-bottom: 4rem; }
+        .step { display: flex; gap: 2rem; margin-bottom: 3rem; }
         .step-num {
-            background: linear-gradient(135deg, var(--brand-pink), var(--brand-blue));
-            color: white;
-            width: 48px; height: 48px; border-radius: 12px;
+            background: var(--btn-grad);
+            width: 44px; height: 44px;
+            border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            font-weight: 900; font-size: 1.2rem;
+            font-weight: 800; flex-shrink: 0;
         }
 
-        footer { padding: 5rem 0; border-top: 1px solid rgba(255,255,255,0.05); text-align: center; }
-        footer a { color: var(--brand-pink); text-decoration: none; font-weight: 600; }
+        footer { text-align: center; padding: 6rem 0 3rem; color: var(--text-dim); border-top: 1px solid rgba(255,255,255,0.05); }
+        footer a { color: var(--accent-secondary); text-decoration: none; }
 
         @media (max-width: 768px) {
             h1 { font-size: 2.8rem; }
-            header { padding: 4rem 0 3rem; }
+            .cta-group { flex-direction: column; }
         }
     </style>
 </head>
@@ -110,26 +158,62 @@
     </nav>
 
     <header>
-        <h1>Instant Alerts. <br><span class="highlight">Zero Lag Trading.</span></h1>
+        <h1>Stop Chasing Emails. <br><span class="highlight">Trade with Precision.</span></h1>
         <p class="hero-p">NotifyU bridges the gap between your scanners and your phone. Get formatted, real-time alerts from Chartink and TradingView delivered instantly to Telegram.</p>
-        <a href="https://t.me/Notifyu1_bot" class="cta-button">Get Started Now</a>
+
+        <div class="cta-group">
+            <a href="https://t.me/Notifyu1_bot" class="cta-button">Connect to Bot</a>
+            <a href="/services.html" class="secondary-button">View Services</a>
+        </div>
     </header>
 
     <section class="features">
         <div class="card">
             <h3>⚡ Instant Delivery</h3>
-            <p>Seconds matter. Our high-performance router ensures your alerts hit Telegram the moment they trigger.</p>
+            <p>Seconds matter. Our high-performance router ensures alerts hit your Telegram the moment they trigger.</p>
         </div>
         <div class="card">
             <h3>📋 Smart Parsing</h3>
-            <p>We parse Chartink JSON to show you the full list of triggered stocks in a clean, professional format.</p>
+            <p>We parse Chartink JSON automatically, displaying triggered stocks in a clean, professional format.</p>
         </div>
         <div class="card">
             <h3>🔒 Secure Routing</h3>
-            <p>Your unique UID and security key act as a private tunnel for your data.</p>
+            <p>Your unique UID and security key act as a private tunnel for your trade signals.</p>
         </div>
     </section>
 
+    <section class="how-it-works">
+        <h2>3-Step Setup</h2>
+        <div class="container" style="max-width: 800px;">
+            <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-content">
+                    <h4>Generate Your Key</h4>
+                    <p>Message <a href="https://t.me/Notifyu1_bot">@Notifyu1_bot</a> and click <code>/start</code> to get your URL.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-content">
+                    <h4>Add Webhook</h4>
+                    <p>Paste the URL into Chartink or TradingView alert settings using JSON format.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                    <h4>Get Alerts</h4>
+                    <p>Receive real-time, formatted notifications directly on your phone or desktop.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>© 2026 NotifyU. Built for the trading community.</p>
+        <p style="margin-top: 1rem;"><a href="mailto:support@notifyu.me">support@notifyu.me</a></p>
+    </footer>
 </div>
+
 </body>
 </html>
