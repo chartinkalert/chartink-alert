@@ -212,7 +212,7 @@ public class RouterController {
     private void handleStart(String chatId) throws Exception {
         UserLink existing = getByChatId(chatId);
         if (existing != null) {
-            sendTelegram(chatId, "Linked Successfully ✅: " + existing.uid + "\nUse /myuid for Webhook URL.");
+            sendTelegram(chatId, "Linked Successfully : " + existing.uid + "\nUse /myuid for Webhook URL.");
             return;
         }
         String uid = generateUniqueUid();
