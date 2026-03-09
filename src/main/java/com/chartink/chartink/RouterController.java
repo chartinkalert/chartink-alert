@@ -318,33 +318,64 @@ public class RouterController {
     }
 
     private String buildMessage(String uid, String body) {
-        if (body == null || body.trim().isEmpty()) return "🔔 *Alert Received*\n\nNo data.";
-        String scanName = "External Alert", stockData = "", timePart = "", triggeredStocks = "";
+        if (body == null || body.trim().isEmpty()) {
+            return "🔔 *Alert Received*\n\nNo data payload found.";
+        }
+
+        String scanName = "External Alert";
+        String stockData = "";
+        String timePart = "";
+        String triggeredStocks = "";
+
         try {
             String cleanBody = body.trim();
+
             if (cleanBody.startsWith("{")) {
+                // Capture the full list of all stocks
                 triggeredStocks = extractJsonValue(cleanBody, "stocks");
+
+                // Extract primary symbol and price
                 String symbol = extractJsonValue(cleanBody, "symbol");
                 String price = extractJsonValue(cleanBody, "trigger_price");
+
                 if (symbol.isEmpty()) symbol = extractJsonValue(cleanBody, "Value1");
-                if (!symbol.isEmpty()) stockData = symbol + (!price.isEmpty() ? " @ " + price : "");
+
+                if (!symbol.isEmpty()) {
+                    stockData = symbol + (!price.isEmpty() ? " @ " + price : "");
+                }
+
                 scanName = extractJsonValue(cleanBody, "alert_name");
                 if (scanName.isEmpty()) scanName = extractJsonValue(cleanBody, "title");
+
                 timePart = extractJsonValue(cleanBody, "triggered_at");
-            } else if (cleanBody.toLowerCase().contains("extra data:")) {
+            }
+            else if (cleanBody.toLowerCase().contains("extra data:")) {
                 String extra = cleanBody.substring(cleanBody.toLowerCase().indexOf("extra data:") + 11).trim();
                 String[] parts = extra.split(",");
                 if (parts.length >= 1) scanName = parts[0].trim();
                 if (parts.length >= 2) stockData = parts[1].trim();
                 if (extra.contains("@")) timePart = extra.substring(extra.indexOf("@")).trim();
-            } else { stockData = cleanBody; }
-        } catch (Exception e) { return "🔔 *Alert*\n\n" + escapeMarkdown(body); }
+            } else {
+                stockData = cleanBody;
+            }
+        } catch (Exception e) {
+            return "🔔 *Alert*\n\n" + escapeMarkdown(body);
+        }
 
-        StringBuilder sb = new StringBuilder("🔔 *New Alert*\n\n");
+        StringBuilder sb = new StringBuilder();
+        sb.append("🔔 *New Alert*").append("\n\n");
         if (!scanName.isEmpty()) sb.append("🧠 *Scan:* ").append(escapeMarkdown(scanName)).append("\n");
+
+        // Primary stock triggered
         if (!stockData.isEmpty()) sb.append("📈 *Trigger:* ").append(escapeMarkdown(stockData)).append("\n");
-        if (!triggeredStocks.isEmpty()) sb.append("📋 *Full List:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
+
+        // Show the full list of all stocks from the Chartink payload
+        if (!triggeredStocks.isEmpty()) {
+            sb.append("📋 *Full List:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
+        }
+
         if (!timePart.isEmpty()) sb.append("⏰ *Time:* ").append(escapeMarkdown(timePart)).append("\n");
+
         return sb.toString().trim();
     }
 
@@ -353,15 +384,29 @@ public class RouterController {
             String pattern = "\"" + key + "\":";
             int start = json.indexOf(pattern);
             if (start == -1) return "";
+
             start += pattern.length();
-            while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '"' || json.charAt(start) == ':')) start++;
+            // Skip whitespace, colons, and the opening quote
+            while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == ':' || json.charAt(start) == '"')) {
+                start++;
+            }
+
+            // Find the ending quote of the value
             int end = json.indexOf("\"", start);
             if (end == -1) {
-                int endComma = json.indexOf(",", start), endBrace = json.indexOf("}", start);
-                if (endComma == -1) end = endBrace; else if (endBrace == -1) end = endComma; else end = Math.min(endComma, endBrace);
+                // Fallback for unquoted numbers/values if quotes aren't found
+                int endComma = json.indexOf(",", start);
+                int endBrace = json.indexOf("}", start);
+                if (endComma == -1) end = endBrace;
+                else if (endBrace == -1) end = endComma;
+                else end = Math.min(endComma, endBrace);
             }
-            return (start >= end) ? "" : json.substring(start, end).trim();
-        } catch (Exception e) { return ""; }
+
+            if (start >= end) return "";
+            return json.substring(start, end).trim();
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private void sendTelegram(String chatId, String text) throws Exception {
