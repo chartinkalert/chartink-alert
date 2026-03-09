@@ -21,6 +21,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.time.LocalDate;
 import java.util.List;
 
+@PostMapping("/")
+public String handleRootPost() {
+    return "OK";
+}
 @RestController
 public class RouterController {
 
@@ -116,7 +120,7 @@ public class RouterController {
         if (updateIdObj instanceof Number) {
             long updateId = ((Number) updateIdObj).longValue();
             if (!seenUpdates.add(updateId)) return "OK";
-            if (seenUpdates.size() > 5000) seenUpdates.clear();
+            if (seenUpdates.size() > 500) seenUpdates.clear();
         }
 
         try {
