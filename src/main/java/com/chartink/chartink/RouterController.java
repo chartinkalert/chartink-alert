@@ -302,7 +302,11 @@ public class RouterController {
         String base = StringUtils.hasText(publicUrl) ? publicUrl.trim() : "(server)";
         if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
         String webhook = base + "/chartink?uid=" + uid + "&key=" + userKey;
-        return "✅ *Linked!*\n\nURL: `" + webhook + "`\n\n/stats - Usage\n/more - Actions";
+        return "✅ *Linked Successfully!*\n\n" +
+                "*Webhook URL:* `" + webhook + "`\n\n" +
+                "Paste this URL in chartink/Tradingview , in the webhook field while setting alert\n\n" +
+                "/stats - Usage\n" +
+                "/more - Actions";
     }
 
     private String escapeMarkdown(String s) {
