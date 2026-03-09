@@ -43,10 +43,7 @@ public class RouterController {
     }
 
     // Fix for "POST method not supported" warnings from bots
-    @PostMapping("/")
-    public String handleRootPost() {
-        return "OK";
-    }
+    
 
     // 1) Chartink Webhook
     @PostMapping(
