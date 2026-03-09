@@ -39,3 +39,11 @@ CREATE TABLE IF NOT EXISTS daily_usage (
                                            alerts_count int NOT NULL DEFAULT 0,
                                            PRIMARY KEY (day, chat_id)
     );
+-- Track processed Telegram update IDs to prevent memory leaks and duplicates
+CREATE TABLE IF NOT EXISTS telegram_updates (
+                                                update_id BIGINT PRIMARY KEY,
+                                                processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Optional: Index for cleanup tasks
+CREATE INDEX IF NOT EXISTS ix_telegram_updates_time ON telegram_updates(processed_at);

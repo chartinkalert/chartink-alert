@@ -3,9 +3,9 @@ package com.chartink;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -15,36 +15,23 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
-@PostMapping("/")
-public String handleRootPost() {
-    return "OK";
-}
 @RestController
 public class RouterController {
 
     private final JdbcTemplate jdbc;
 
-    // Dedup Telegram retries by update_id
-    private final Set<Long> seenUpdates = ConcurrentHashMap.newKeySet();
-
     // Generators
     private static final SecureRandom RNG = new SecureRandom();
-    private static final char[] UID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray(); // no I,O,0,1
+    private static final char[] UID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
     private static final char[] KEY_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".toCharArray();
 
     @Value("${telegram.botToken}")
     private String botToken;
 
-    // Public URL of your server (Railway domain)
-    // Add in application.yaml:
-    // app:
-    //   publicUrl: ${APP_PUBLIC_URL}
     @Value("${app.publicUrl}")
     private String publicUrl;
 
@@ -55,8 +42,13 @@ public class RouterController {
         this.jdbc = jdbc;
     }
 
-    // 1) Chartink will call this
-    // Now validates: uid + per-user key stored in DB
+    // Fix for "POST method not supported" warnings from bots
+    @PostMapping("/")
+    public String handleRootPost() {
+        return "OK";
+    }
+
+    // 1) Chartink Webhook
     @PostMapping(
             value = "/chartink",
             consumes = MediaType.ALL_VALUE,
@@ -74,7 +66,6 @@ public class RouterController {
         String normalizedUid = uid.trim().toLowerCase();
         String providedKey = key.trim();
 
-        // Fetch chat_id + user_key for uid
         Map<String, Object> row = jdbc.query(
                 "SELECT chat_id, user_key FROM user_map WHERE uid = ?",
                 rs -> rs.next()
@@ -100,27 +91,39 @@ public class RouterController {
 
         return "OK";
     }
+
     private int getTodayUsageFromDailyTable(String chatId) {
-        // Using a list query to avoid EmptyResultDataAccessException if no row exists
         List<Integer> counts = jdbc.query(
                 "SELECT alerts_count FROM daily_usage WHERE chat_id = ? AND day = ?",
                 (rs, rowNum) -> rs.getInt("alerts_count"),
                 chatId, java.sql.Date.valueOf(LocalDate.now())
         );
-
-        // If the list is empty, it means no alerts have been sent today yet
         return counts.isEmpty() ? 0 : counts.get(0);
     }
-    // 2) Telegram webhook
+
+    // 2) Telegram Webhook with Database-based Deduplication
     @PostMapping(value = "/telegram", produces = "text/plain; charset=UTF-8")
     public String telegramWebhook(@RequestBody Map<String, Object> update) {
 
-        // Dedup retries
         Object updateIdObj = update.get("update_id");
         if (updateIdObj instanceof Number) {
             long updateId = ((Number) updateIdObj).longValue();
-            if (!seenUpdates.add(updateId)) return "OK";
-            if (seenUpdates.size() > 500) seenUpdates.clear();
+
+            // Try to insert update_id into DB. If it exists, INSERT will fail (ON CONFLICT DO NOTHING)
+            // or we check if we actually inserted a row.
+            try {
+                int rowsAffected = jdbc.update(
+                        "INSERT INTO telegram_updates (update_id) VALUES (?) ON CONFLICT (update_id) DO NOTHING",
+                        updateId
+                );
+
+                // If rowsAffected is 0, it means it was a duplicate and we do nothing.
+                if (rowsAffected == 0) return "OK";
+
+            } catch (Exception e) {
+                // Secondary check for non-PostgreSQL DBs or unique constraint errors
+                return "OK";
+            }
         }
 
         try {
@@ -131,7 +134,6 @@ public class RouterController {
             if (!(messageObj instanceof Map)) return "OK";
 
             Map<?, ?> message = (Map<?, ?>) messageObj;
-
             Object chatObj = message.get("chat");
             Object textObj = message.get("text");
 
@@ -144,66 +146,37 @@ public class RouterController {
             String chatId = String.valueOf(chatIdObj);
             String text = ((String) textObj).trim();
 
-            // Commands
-            if (text.startsWith("/start")) {
-                handleStart(chatId);
-                return "OK";
-            }
-            if (text.startsWith("/myuid")) {
-                handleMyUid(chatId);
-                return "OK";
-            }
-            if (text.startsWith("/unlink")) {
-                handleUnlink(chatId, text);
-                return "OK";
-            }
-            if (text.startsWith("/newuid")) {
-                handleNewUid(chatId, text);
+            if (text.startsWith("/start")) { handleStart(chatId); return "OK"; }
+            if (text.startsWith("/myuid")) { handleMyUid(chatId); return "OK"; }
+            if (text.startsWith("/unlink")) { handleUnlink(chatId, text); return "OK"; }
+            if (text.startsWith("/newuid")) { handleNewUid(chatId, text); return "OK"; }
+            if (text.startsWith("/stats")) {
+                int today = getTodayUsageFromDailyTable(chatId);
+                sendTelegram(chatId, "📊 *Daily Usage*\nUsed: " + today + " / 100");
                 return "OK";
             }
             if (text.startsWith("/more")) {
-                sendTelegram(chatId, "⚙️ *Other Actions*\n\n" +
-                        "⚠️ *Warning:* These actions will make your current Chartink webhook URL stop working.\n\n" +
-                        "/newuid - Generate a brand new URL\n" +
-                        "/unlink - Delete your account link");
-                return "OK";
-            }
-            // Inside the telegramWebhook method's command block
-            if (text.startsWith("/stats")) {
-                int today = getTodayUsageFromDailyTable(chatId);
-                int limit = 50;
-                sendTelegram(chatId, "📊 *Daily Usage*\n" +
-                        "Used: " + today + " / " + limit + "\n" +
-                        "Remaining: " + (limit - today));
-                return "OK";
-            }
-            if (text.startsWith("/adminstats")) {
-                if (!isAdmin(chatId)) { sendTelegram(chatId, "Not allowed."); return "OK"; }
-                handleAdminStats(chatId);
-                return "OK";
-            }
-            if (text.startsWith("/adminusers")) {
-                if (!isAdmin(chatId)) { sendTelegram(chatId, "Not allowed."); return "OK"; }
-                handleAdminUsers(chatId);
-                return "OK";
-            }
-            if (text.startsWith("/admintop")) {
-                if (!isAdmin(chatId)) { sendTelegram(chatId, "Not allowed."); return "OK"; }
-                handleAdminTop(chatId);
+                sendTelegram(chatId, "⚙️ *Other Actions*\n\n/newuid - Rotate URL\n/unlink - Delete account");
                 return "OK";
             }
 
-            // Optional: allow custom uid ONLY if user has no uid yet
-            if (text.startsWith("/link")) {
-                handleCustomLink(chatId, text);
-                return "OK";
-            }
+            // Admin Commands
+            if (text.startsWith("/adminstats") && isAdmin(chatId)) { handleAdminStats(chatId); return "OK"; }
+            if (text.startsWith("/adminusers") && isAdmin(chatId)) { handleAdminUsers(chatId); return "OK"; }
+            if (text.startsWith("/admintop") && isAdmin(chatId)) { handleAdminTop(chatId); return "OK"; }
+
+            if (text.startsWith("/link")) { handleCustomLink(chatId, text); return "OK"; }
 
             return "OK";
         } catch (Exception ex) {
-            ex.printStackTrace();
             return "OK";
         }
+    }
+
+    // Cleanup task to keep the database small (deletes IDs older than 24 hours)
+    @Scheduled(cron = "0 0 0 * * *")
+    public void cleanupOldUpdates() {
+        jdbc.update("DELETE FROM telegram_updates WHERE processed_at < NOW() - INTERVAL '1 day'");
     }
 
     private boolean isAdmin(String chatId) {
@@ -212,449 +185,201 @@ public class RouterController {
 
     private void handleAdminStats(String chatId) throws Exception {
         Integer totalUsers = jdbc.queryForObject("SELECT COUNT(*) FROM user_map", Integer.class);
-
-        LocalDate today = LocalDate.now();
         Integer todayAlerts = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(alerts_count),0) FROM daily_usage WHERE day = ?",
-                Integer.class,
-                java.sql.Date.valueOf(today)
+                "SELECT COALESCE(SUM(alerts_count),0) FROM daily_usage WHERE day = CURRENT_DATE",
+                Integer.class
         );
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("📊 Admin Stats\n\n");
-        sb.append("👤 Total users linked: ").append(totalUsers == null ? 0 : totalUsers).append("\n");
-        sb.append("🔔 Alerts today: ").append(todayAlerts == null ? 0 : todayAlerts).append("\n\n");
-        sb.append("Use /admintop for top users today\n");
-        sb.append("Use /adminusers for latest linked users");
-
-        sendTelegram(chatId, sb.toString());
+        sendTelegram(chatId, "📊 Admin Stats\n\nTotal Users: " + totalUsers + "\nAlerts Today: " + todayAlerts);
     }
 
     private void handleAdminUsers(String chatId) throws Exception {
-        List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT uid, chat_id, updated_at FROM user_map ORDER BY updated_at DESC LIMIT 20"
-        );
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("👥 Latest 20 linked users\n\n");
-
-        if (rows.isEmpty()) {
-            sb.append("(no users yet)");
-            sendTelegram(chatId, sb.toString());
-            return;
-        }
-
+        List<Map<String, Object>> rows = jdbc.queryForList("SELECT uid, chat_id FROM user_map ORDER BY updated_at DESC LIMIT 20");
+        StringBuilder sb = new StringBuilder("👥 Latest 20 users\n\n");
         for (Map<String, Object> r : rows) {
-            sb.append("• UID: ").append(String.valueOf(r.get("uid")))
-                    .append(" | chat_id: ").append(String.valueOf(r.get("chat_id")))
-                    .append("\n");
+            sb.append("• ").append(r.get("uid")).append(" | ").append(r.get("chat_id")).append("\n");
         }
-
         sendTelegram(chatId, sb.toString());
     }
 
     private void handleAdminTop(String chatId) throws Exception {
-        LocalDate today = LocalDate.now();
-
         List<Map<String, Object>> rows = jdbc.queryForList(
-                "SELECT um.uid, du.alerts_count " +
-                        "FROM daily_usage du " +
-                        "JOIN user_map um ON um.chat_id = du.chat_id " +
-                        "WHERE du.day = ? " +
-                        "ORDER BY du.alerts_count DESC " +
-                        "LIMIT 10",
-                java.sql.Date.valueOf(today)
-        );
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("🏆 Top 10 (today)\n\n");
-
-        if (rows.isEmpty()) {
-            sb.append("(no alerts today)");
-            sendTelegram(chatId, sb.toString());
-            return;
-        }
-
-        int rank = 1;
+                "SELECT um.uid, du.alerts_count FROM daily_usage du JOIN user_map um ON um.chat_id = du.chat_id " +
+                        "WHERE du.day = CURRENT_DATE ORDER BY du.alerts_count DESC LIMIT 10");
+        StringBuilder sb = new StringBuilder("🏆 Top 10 Today\n\n");
         for (Map<String, Object> r : rows) {
-            sb.append(rank++).append(") ")
-                    .append(String.valueOf(r.get("uid")))
-                    .append(" — ")
-                    .append(String.valueOf(r.get("alerts_count")))
-                    .append("\n");
+            sb.append("• ").append(r.get("uid")).append(": ").append(r.get("alerts_count")).append("\n");
         }
-
         sendTelegram(chatId, sb.toString());
     }
-
-    // ---------- Command handlers ----------
 
     private void handleStart(String chatId) throws Exception {
         UserLink existing = getByChatId(chatId);
         if (existing != null) {
-            sendTelegram(chatId,
-                    "You are already linked.\n\n" +
-                            "UID: " + existing.uid + "\n\n" +
-                            "Use /myuid to get your full Chartink webhook URL.\n" +
-                            "Use /newuid to rotate it, or /unlink to remove.");
+            sendTelegram(chatId, "Linked: " + existing.uid + "\nUse /myuid for URL.");
             return;
         }
-
         String uid = generateUniqueUid();
         String userKey = generateUniqueUserKey();
-
         linkUidToChat(uid, userKey, chatId);
-
         sendTelegram(chatId, buildLinkedMessage(uid, userKey));
     }
 
     private void handleMyUid(String chatId) throws Exception {
         UserLink existing = getByChatId(chatId);
-        if (existing == null) {
-            sendTelegram(chatId, "No UID linked.\nSend /start to generate one.");
-            return;
-        }
+        if (existing == null) { sendTelegram(chatId, "/start to generate."); return; }
         sendTelegram(chatId, buildLinkedMessage(existing.uid, existing.userKey));
     }
 
     private void handleUnlink(String chatId, String text) throws Exception {
         if (!text.contains("confirm")) {
-            sendTelegram(chatId, "⚠️ *Are you sure?*\n\n" +
-                    "Unlinking will **permanently disable** all active alerts using your current UID.\n\n" +
-                    "To proceed, send: `/unlink confirm` ");
+            sendTelegram(chatId, "⚠️ Send `/unlink confirm` to delete your link.");
             return;
         }
         jdbc.update("DELETE FROM user_map WHERE chat_id = ?", chatId);
-        sendTelegram(chatId, "❌ *Unlinked.* Your previous webhook URL is now invalid.");
+        sendTelegram(chatId, "❌ Unlinked.");
     }
 
     private void handleNewUid(String chatId, String text) throws Exception {
-        // 1. Check for confirmation
         if (!text.contains("confirm")) {
-            sendTelegram(chatId, "⚠️ *Rotate UID and Key?*\n\n" +
-                    "This will generate a new URL. Your **existing alerts on Chartink will stop working** until you update them with the new URL.\n\n" +
-                    "To proceed, send: `/newuid confirm` ");
+            sendTelegram(chatId, "⚠️ Send `/newuid confirm` to rotate URL.");
             return;
         }
-
-        // 2. Perform the rotation
-        // Delete the old mapping first
         jdbc.update("DELETE FROM user_map WHERE chat_id = ?", chatId);
-
-        // Generate new secure credentials
-        String uid = generateUniqueUid();
-        String userKey = generateUniqueUserKey();
-
-        // Link the new credentials to the user
-        linkUidToChat(uid, userKey, chatId);
-
-        // Send the success message with the new URL
-        sendTelegram(chatId, "🔄 *Rotated Successfully!*\n\n" + buildLinkedMessage(uid, userKey));
+        handleStart(chatId);
     }
 
     private void handleCustomLink(String chatId, String text) throws Exception {
-        UserLink existing = getByChatId(chatId);
-        if (existing != null) {
-            sendTelegram(chatId,
-                    "You already have a UID.\n\n" +
-                            "UID: " + existing.uid + "\n\n" +
-                            "Use /newuid to rotate or /unlink to remove.");
-            return;
-        }
-
         String[] parts = text.split("\\s+");
-        if (parts.length < 2) {
-            sendTelegram(chatId, "Usage: /link <your_uid>\nOr just use /start to auto-generate.");
-            return;
-        }
-
+        if (parts.length < 2) { sendTelegram(chatId, "Usage: /link <uid>"); return; }
         String uid = parts[1].trim().toLowerCase();
-
-        // basic validation
-        if (!uid.matches("[a-z0-9_\\-]{3,20}")) {
-            sendTelegram(chatId, "Invalid UID. Use 3-20 chars: a-z, 0-9, _ or -");
-            return;
-        }
-
-        // ensure uid not taken
-        if (getByUid(uid) != null) {
-            sendTelegram(chatId, "This UID is already taken.\nChoose a different UID or use /start.");
-            return;
-        }
-
+        if (getByUid(uid) != null) { sendTelegram(chatId, "Taken."); return; }
         String userKey = generateUniqueUserKey();
         linkUidToChat(uid, userKey, chatId);
-
         sendTelegram(chatId, buildLinkedMessage(uid, userKey));
     }
 
-    // ---------- DB helpers ----------
-
     private static class UserLink {
-        final String uid;
-        final String chatId;
-        final String userKey;
-
-        UserLink(String uid, String chatId, String userKey) {
-            this.uid = uid;
-            this.chatId = chatId;
-            this.userKey = userKey;
-        }
+        final String uid, chatId, userKey;
+        UserLink(String u, String c, String k) { this.uid = u; this.chatId = c; this.userKey = k; }
     }
 
     private UserLink getByChatId(String chatId) {
-        return jdbc.query(
-                "SELECT uid, chat_id, user_key FROM user_map WHERE chat_id = ?",
-                rs -> rs.next() ? new UserLink(rs.getString("uid"), rs.getString("chat_id"), rs.getString("user_key")) : null,
-                chatId
-        );
+        return jdbc.query("SELECT uid, chat_id, user_key FROM user_map WHERE chat_id = ?",
+                rs -> rs.next() ? new UserLink(rs.getString(1), rs.getString(2), rs.getString(3)) : null, chatId);
     }
 
     private UserLink getByUid(String uid) {
-        return jdbc.query(
-                "SELECT uid, chat_id, user_key FROM user_map WHERE uid = ?",
-                rs -> rs.next() ? new UserLink(rs.getString("uid"), rs.getString("chat_id"), rs.getString("user_key")) : null,
-                uid
-        );
+        return jdbc.query("SELECT uid, chat_id, user_key FROM user_map WHERE uid = ?",
+                rs -> rs.next() ? new UserLink(rs.getString(1), rs.getString(2), rs.getString(3)) : null, uid);
     }
 
     private void linkUidToChat(String uid, String userKey, String chatId) {
-        jdbc.update(
-                "INSERT INTO user_map(uid, chat_id, user_key, updated_at) VALUES(?,?,?,?)",
-                uid, chatId, userKey, Instant.now().getEpochSecond()
-        );
+        jdbc.update("INSERT INTO user_map(uid, chat_id, user_key, updated_at) VALUES(?,?,?,?)",
+                uid, chatId, userKey, Instant.now().getEpochSecond());
     }
 
-    // ---------- UID & key generator ----------
-
     private String generateUniqueUid() throws Exception {
-        for (int tries = 0; tries < 40; tries++) {
+        for (int i = 0; i < 40; i++) {
             String uid = generateFromAlphabet(UID_ALPHABET, 8).toLowerCase();
             if (getByUid(uid) == null) return uid;
         }
-        throw new Exception("Could not generate unique UID");
+        throw new Exception("UID gen failed");
     }
 
     private String generateUniqueUserKey() throws Exception {
-        for (int tries = 0; tries < 40; tries++) {
-            // Longer key for security
+        for (int i = 0; i < 40; i++) {
             String key = generateFromAlphabet(KEY_ALPHABET, 24);
-            // ensure unique key
-            String exists = jdbc.query(
-                    "SELECT user_key FROM user_map WHERE user_key = ?",
-                    rs -> rs.next() ? rs.getString(1) : null,
-                    key
-            );
-            if (exists == null) return key;
+            Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM user_map WHERE user_key = ?", Integer.class, key);
+            if (count != null && count == 0) return key;
         }
-        throw new Exception("Could not generate unique user key");
+        throw new Exception("Key gen failed");
     }
 
     private String generateFromAlphabet(char[] alphabet, int len) {
         StringBuilder sb = new StringBuilder(len);
-        for (int i = 0; i < len; i++) {
-            sb.append(alphabet[RNG.nextInt(alphabet.length)]);
-        }
+        for (int i = 0; i < len; i++) sb.append(alphabet[RNG.nextInt(alphabet.length)]);
         return sb.toString();
     }
-
-    // ---------- User-facing message ----------
 
     private String buildLinkedMessage(String uid, String userKey) {
         String base = StringUtils.hasText(publicUrl) ? publicUrl.trim() : "(server)";
         if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
-
         String webhook = base + "/chartink?uid=" + uid + "&key=" + userKey;
-
-        return "✅ *Linked successfully!*\n\n" +
-                "🚀 *Your Webhook URL:*\n`" + webhook + "`\n\n" +
-                "1. Copy the URL above.\n" +
-                "2. Paste it into your Chartink Alert settings.\n\n" +
-                "💡 *Commands:*\n" +
-                "/myuid - Show your URL again\n" +
-                "/stats - View daily usage\n" +
-                "/more - Other actions (Reset/Unlink)";
+        return "✅ *Linked!*\n\nURL: `" + webhook + "`\n\n/stats - Usage\n/more - Actions";
     }
-
-    // ---------- Alert message ----------
 
     private String escapeMarkdown(String s) {
         if (s == null) return "";
-        return s.replace("_", "\\_")
-                .replace("*", "\\*")
-                .replace("[", "\\[")
-                .replace("]", "\\]")
-                .replace("(", "\\(")
-                .replace(")", "\\)")
-                .replace("~", "\\~")
-                .replace("`", "\\`")
-                .replace(">", "\\>")
-                .replace("#", "\\#")
-                .replace("+", "\\+")
-                .replace("-", "\\-")
-                .replace("=", "\\=")
-                .replace("|", "\\|")
-                .replace("{", "\\{")
-                .replace("}", "\\}")
-                .replace(".", "\\.")
-                .replace("!", "\\!");
+        return s.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("]", "\\]")
+                .replace("(", "\\(").replace(")", "\\)").replace("~", "\\~").replace("`", "\\`")
+                .replace(">", "\\>").replace("#", "\\#").replace("+", "\\+").replace("-", "\\-")
+                .replace("=", "\\=").replace("|", "\\|").replace("{", "\\{").replace("}", "\\}")
+                .replace(".", "\\.").replace("!", "\\!");
     }
 
     private String buildMessage(String uid, String body) {
-        if (body == null || body.trim().isEmpty()) {
-            return "🔔 *Alert Received*\n\nNo data payload found.";
-        }
-
-        String scanName = "External Alert";
-        String stockData = "";
-        String timePart = "";
-        String triggeredStocks = "";
-
+        if (body == null || body.trim().isEmpty()) return "🔔 *Alert Received*\n\nNo data.";
+        String scanName = "External Alert", stockData = "", timePart = "", triggeredStocks = "";
         try {
             String cleanBody = body.trim();
-
             if (cleanBody.startsWith("{")) {
-                // 1. Get the full list of symbols (e.g., "SBIN, RELIANCE, TCS")
                 triggeredStocks = extractJsonValue(cleanBody, "stocks");
-
-                // 2. Get the primary trigger symbol and price
                 String symbol = extractJsonValue(cleanBody, "symbol");
                 String price = extractJsonValue(cleanBody, "trigger_price");
-
                 if (symbol.isEmpty()) symbol = extractJsonValue(cleanBody, "Value1");
-
-                if (!symbol.isEmpty()) {
-                    stockData = symbol + (!price.isEmpty() ? " @ " + price : "");
-                }
-
+                if (!symbol.isEmpty()) stockData = symbol + (!price.isEmpty() ? " @ " + price : "");
                 scanName = extractJsonValue(cleanBody, "alert_name");
                 if (scanName.isEmpty()) scanName = extractJsonValue(cleanBody, "title");
-
                 timePart = extractJsonValue(cleanBody, "triggered_at");
-            }
-            else if (cleanBody.toLowerCase().contains("extra data:")) {
+            } else if (cleanBody.toLowerCase().contains("extra data:")) {
                 String extra = cleanBody.substring(cleanBody.toLowerCase().indexOf("extra data:") + 11).trim();
                 String[] parts = extra.split(",");
                 if (parts.length >= 1) scanName = parts[0].trim();
                 if (parts.length >= 2) stockData = parts[1].trim();
                 if (extra.contains("@")) timePart = extra.substring(extra.indexOf("@")).trim();
-            } else {
-                stockData = cleanBody;
-            }
-        } catch (Exception e) {
-            return "🔔 *Alert*\n\n" + escapeMarkdown(body);
-        }
+            } else { stockData = cleanBody; }
+        } catch (Exception e) { return "🔔 *Alert*\n\n" + escapeMarkdown(body); }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("🔔 *New Alert*").append("\n\n");
+        StringBuilder sb = new StringBuilder("🔔 *New Alert*\n\n");
         if (!scanName.isEmpty()) sb.append("🧠 *Scan:* ").append(escapeMarkdown(scanName)).append("\n");
-
-        // If we have a specific trigger stock, show it
         if (!stockData.isEmpty()) sb.append("📈 *Trigger:* ").append(escapeMarkdown(stockData)).append("\n");
-
-        // NEW: Always show the full list if 'stocks' field was present in the JSON
-        if (!triggeredStocks.isEmpty()) {
-            sb.append("📋 *Full List:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
-        }
-
+        if (!triggeredStocks.isEmpty()) sb.append("📋 *Full List:* ").append(escapeMarkdown(triggeredStocks)).append("\n");
         if (!timePart.isEmpty()) sb.append("⏰ *Time:* ").append(escapeMarkdown(timePart)).append("\n");
-
         return sb.toString().trim();
     }
 
-    // More robust helper to avoid "No Alerts" issues
     private String extractJsonValue(String json, String key) {
         try {
             String pattern = "\"" + key + "\":";
             int start = json.indexOf(pattern);
             if (start == -1) return "";
-
             start += pattern.length();
-            // Skip whitespace, colons, and opening quotes
-            while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '"' || json.charAt(start) == ':')) {
-                start++;
-            }
-
-            // Find the ending quote of the value
+            while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '"' || json.charAt(start) == ':')) start++;
             int end = json.indexOf("\"", start);
             if (end == -1) {
-                // Fallback for unquoted numbers/values
-                int endComma = json.indexOf(",", start);
-                int endBrace = json.indexOf("}", start);
-                if (endComma == -1) end = endBrace;
-                else if (endBrace == -1) end = endComma;
-                else end = Math.min(endComma, endBrace);
+                int endComma = json.indexOf(",", start), endBrace = json.indexOf("}", start);
+                if (endComma == -1) end = endBrace; else if (endBrace == -1) end = endComma; else end = Math.min(endComma, endBrace);
             }
-
-            if (start >= end) return "";
-            return json.substring(start, end).trim();
-        } catch (Exception e) {
-            return "";
-        }
+            return (start >= end) ? "" : json.substring(start, end).trim();
+        } catch (Exception e) { return ""; }
     }
-
-    // ---------- Telegram sender ----------
 
     private void sendTelegram(String chatId, String text) throws Exception {
         String url = "https://api.telegram.org/bot" + botToken + "/sendMessage";
-
-        String json = "{"
-                + "\"chat_id\":\"" + escapeJson(chatId) + "\","
-                + "\"text\":\"" + escapeJson(text) + "\","
-                + "\"parse_mode\":\"Markdown\""
-                + "}";
-
+        String json = "{\"chat_id\":\"" + escapeJson(chatId) + "\",\"text\":\"" + escapeJson(text) + "\",\"parse_mode\":\"Markdown\"}";
         HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
         con.setRequestMethod("POST");
         con.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
         con.setDoOutput(true);
-
-        try (OutputStream os = con.getOutputStream()) {
-            byte[] input = json.getBytes("UTF-8");
-            os.write(input);
-        }
-
-        int code = con.getResponseCode();
-        InputStream is = (code >= 200 && code < 300) ? con.getInputStream() : con.getErrorStream();
-        if (is != null) {
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
-                while (br.readLine() != null) { /* consume */ }
-            }
-        }
+        try (OutputStream os = con.getOutputStream()) { os.write(json.getBytes("UTF-8")); }
+        con.getResponseCode();
     }
 
     private void incrementTodayUsage(String chatId) {
-        LocalDate today = LocalDate.now();
-
-        jdbc.update(
-                "INSERT INTO daily_usage(day, chat_id, alerts_count) VALUES(?,?,1) " +
-                        "ON CONFLICT (day, chat_id) DO UPDATE SET alerts_count = daily_usage.alerts_count + 1",
-                java.sql.Date.valueOf(today),
-                chatId
-        );
+        jdbc.update("INSERT INTO daily_usage(day, chat_id, alerts_count) VALUES(CURRENT_DATE,?,1) " +
+                "ON CONFLICT (day, chat_id) DO UPDATE SET alerts_count = daily_usage.alerts_count + 1", chatId);
     }
 
-    private int getTodayUsage(String chatId) {
-        Integer v = jdbc.query(
-                "SELECT count FROM alert_usage WHERE chat_id = ? AND day = CURRENT_DATE",
-                rs -> rs.next() ? rs.getInt(1) : null,
-                chatId
-        );
-        return v == null ? 0 : v;
-    }
-
-    private int getTotalUsage(String chatId) {
-        Integer v = jdbc.query(
-                "SELECT COALESCE(SUM(count), 0) FROM alert_usage WHERE chat_id = ?",
-                rs -> rs.next() ? rs.getInt(1) : 0,
-                chatId
-        );
-        return v == null ? 0 : v;
-    }
-
-
-
-    // Proper JSON escape
     private String escapeJson(String s) {
         if (s == null) return "";
         StringBuilder out = new StringBuilder(s.length() + 16);
@@ -663,11 +388,8 @@ public class RouterController {
             switch (c) {
                 case '"': out.append("\\\""); break;
                 case '\\': out.append("\\\\"); break;
-                case '\b': out.append("\\b"); break;
-                case '\f': out.append("\\f"); break;
                 case '\n': out.append("\\n"); break;
                 case '\r': out.append("\\r"); break;
-                case '\t': out.append("\\t"); break;
                 default:
                     if (c < 0x20) out.append(String.format("\\u%04x", (int) c));
                     else out.append(c);
